@@ -75,7 +75,13 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("dashboard.html", username=session.get("username"))
+    return render_template(
+        "dashboard.html",
+        username=session.get("username"),
+        full_name=session.get("full_name"),
+        role=session.get("role"),
+    )
+
 
 
 if __name__ == "__main__":
