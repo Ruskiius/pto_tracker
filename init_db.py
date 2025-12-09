@@ -40,7 +40,7 @@ def init_db():
     admin_full_name = "Admin User"
     admin_role = "admin"
 
-    password_hash = generate_password_hash(admin_password)
+    password_hash = generate_password_hash(admin_password, method="pbkdf2:sha256")
 
     conn.execute(
         """
