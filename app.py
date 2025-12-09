@@ -100,6 +100,66 @@ def employees_list():
 
     return render_template("employees_list.html", employees=employees)
 
+@app.route("/employees/new", methods=["GET", "POST"])
+@login_required
+def employee_new():
+    if request.method == "POST":
+        first_name = request.form.get("first_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
+        employment_type = request.form.get("employment_type", "").strip()
+        phone = request.form.get("phone", "").strip()
+        email = request.form.get("email", "").strip()
+
+        errors = []
+        if not first_name:
+            errors.append("First name is required.")
+        if not last_name:
+            errors.append("Last name is required.")
+        if employment_type not in ("hourly", "salaried"):
+            errors.append("Employment type must be hourly or salaried.")
+
+        if errors:
+            return render_template(
+                "employee_form.html",
+                errors=errors,
+                first_name=first_name,
+                last_name=last_name,
+                employment_type=employment_type,
+                phone=phone,
+                email=email,
+            )
+
+        conn = get_db_connection()
+        # Insert employee
+        cur = conn.execute(
+            """
+            INSERT INTO employees (first_name, last_name, employment_type, phone, email, status)
+            VALUES (?, ?, ?, ?, ?, 'active')
+            """,
+            (first_name, last_name, employment_type, phone, email),
+        )
+        employee_id = cur.lastrowid
+
+        # Fetch PTO types
+        pto_types = conn.execute("SELECT id FROM pto_types").fetchall()
+
+        # Create PTO balances with default 40 hours allotted for each type
+        for pto_type in pto_types:
+            conn.execute(
+                """
+                INSERT INTO pto_balances (employee_id, pto_type_id, hours_allotted, hours_used)
+                VALUES (?, ?, ?, 0)
+                """,
+                (employee_id, pto_type["id"], 40.0),
+            )
+
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for("employees_list"))
+
+    # GET request: render empty form
+    return render_template("employee_form.html")
 
 
 
