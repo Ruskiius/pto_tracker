@@ -40,18 +40,30 @@ def home():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # For Step 1, hardcoded credentials (we will hook DB later)
-        username = request.form.get("username")
-        password = request.form.get("password")
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
 
-        if username == "admin" and password == "password":
-            session["user_id"] = 1
-            session["username"] = "admin"
-            return redirect(url_for("dashboard"))
+        conn = get_db_connection()
+        cur = conn.execute(
+            "SELECT id, username, password_hash, full_name, role FROM managers WHERE username = ?",
+            (username,),
+        )
+        user = cur.fetchone()
+        conn.close()
 
-        return render_template("login.html", error="Invalid credentials")
+        if user is None or not check_password_hash(user["password_hash"], password):
+            return render_template("login.html", error="Invalid username or password")
+
+        # Login success
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        session["full_name"] = user["full_name"]
+        session["role"] = user["role"]
+
+        return redirect(url_for("dashboard"))
 
     return render_template("login.html")
+
 
 
 @app.route("/logout")
