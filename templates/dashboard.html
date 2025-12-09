@@ -8,10 +8,16 @@
 <h1>Welcome, {{ full_name or username }}!</h1>
 <p>Role: {{ role }}</p>
 
-
 <p>This is your PTO dashboard placeholder.</p>
 
-<a href="{{ url_for('logout') }}">Logout</a>
+<ul>
+    <li><a href="{{ url_for('employees_list') }}">Manage Employees</a></li>
+</ul>
+
+<form method="get" action="{{ url_for('logout') }}">
+    <button type="submit">Logout</button>
+</form>
 
 </body>
 </html>
+

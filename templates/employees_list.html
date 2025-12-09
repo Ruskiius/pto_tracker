@@ -1,10 +1,39 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Employees</title>
 </head>
 <body>
+
+<h1>Employees</h1>
+
+<p><a href="{{ url_for('dashboard') }}">Back to dashboard</a></p>
+<p><a href="{{ url_for('employee_new') }}">Add new employee</a></p>
+
+{% if employees %}
+<table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Employment Type</th>
+            <th>Phone</th>
+            <th>Email</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for e in employees %}
+        <tr>
+            <td>{{ e['first_name'] }} {{ e['last_name'] }}</td>
+            <td>{{ e['employment_type']|capitalize }}</td>
+            <td>{{ e['phone'] or '' }}</td>
+            <td>{{ e['email'] or '' }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No employees yet.</p>
+{% endif %}
 
 </body>
 </html>

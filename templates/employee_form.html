@@ -1,10 +1,44 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Add Employee</title>
 </head>
 <body>
+
+<h1>Add Employee</h1>
+
+<p><a href="{{ url_for('employees_list') }}">Back to employees</a></p>
+
+{% if errors %}
+<ul style="color: red;">
+    {% for error in errors %}
+        <li>{{ error }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<form method="POST">
+    <label>First name:</label><br>
+    <input type="text" name="first_name" value="{{ first_name or '' }}"><br><br>
+
+    <label>Last name:</label><br>
+    <input type="text" name="last_name" value="{{ last_name or '' }}"><br><br>
+
+    <label>Employment type:</label><br>
+    <select name="employment_type">
+        <option value="">-- Select --</option>
+        <option value="hourly" {% if employment_type == 'hourly' %}selected{% endif %}>Hourly</option>
+        <option value="salaried" {% if employment_type == 'salaried' %}selected{% endif %}>Salaried</option>
+    </select><br><br>
+
+    <label>Phone:</label><br>
+    <input type="text" name="phone" value="{{ phone or '' }}"><br><br>
+
+    <label>Email:</label><br>
+    <input type="email" name="email" value="{{ email or '' }}"><br><br>
+
+    <button type="submit">Save</button>
+</form>
 
 </body>
 </html>
