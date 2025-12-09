@@ -1,6 +1,9 @@
 from flask import Flask, render_template, redirect, url_for, request, session
 from werkzeug.security import check_password_hash
 import sqlite3
+
+from functools import wraps
+
 from pathlib import Path
 
 app = Flask(__name__)
@@ -22,13 +25,13 @@ app.secret_key = "CHANGE_THIS_TO_SOMETHING_RANDOM_LATER"  # required for session
 
 # --- Authentication helpers ---
 def login_required(f):
+    @wraps(f)
     def wrapper(*args, **kwargs):
         if "user_id" not in session:
             return redirect(url_for("login"))
         return f(*args, **kwargs)
-
-    wrapper.__name__ = f.__name__
     return wrapper
+
 
 
 # --- Routes ---
@@ -81,6 +84,22 @@ def dashboard():
         full_name=session.get("full_name"),
         role=session.get("role"),
     )
+@app.route("/employees")
+@login_required
+def employees_list():
+    conn = get_db_connection()
+    employees = conn.execute(
+        """
+        SELECT id, first_name, last_name, employment_type, phone, email, status
+        FROM employees
+        WHERE status = 'active'
+        ORDER BY last_name, first_name
+        """
+    ).fetchall()
+    conn.close()
+
+    return render_template("employees_list.html", employees=employees)
+
 
 
 
