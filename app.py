@@ -1,4 +1,20 @@
 from flask import Flask, render_template, redirect, url_for, request, session
+from werkzeug.security import check_password_hash
+import sqlite3
+from pathlib import Path
+
+app = Flask(__name__)
+app.secret_key = "CHANGE_THIS_TO_SOMETHING_RANDOM_LATER"
+
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "pto_tracker.db"
+
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row  # access columns by name
+    return conn
+
 
 app = Flask(__name__)
 app.secret_key = "CHANGE_THIS_TO_SOMETHING_RANDOM_LATER"  # required for sessions
