@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Employee Detail</title>
+</head>
+<body>
+
+<h1>
+    {{ employee['first_name'] }} {{ employee['last_name'] }}
+    ({{ employee['employment_type']|capitalize }})
+</h1>
+
+<p>Status: {{ employee['status']|capitalize }}</p>
+
+<p>
+    <strong>Phone:</strong> {{ employee['phone'] or '—' }}<br>
+    <strong>Email:</strong> {{ employee['email'] or '—' }}
+</p>
+
+<p>
+    <a href="{{ url_for('employees_list') }}">← Back to Employees</a> |
+    <a href="{{ url_for('dashboard') }}">Dashboard</a>
+</p>
+
+<hr>
+
+<h2>PTO Balances</h2>
+
+{% if balances %}
+<table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+        <tr>
+            <th>PTO Type</th>
+            <th>Allotted (hrs)</th>
+            <th>Used (hrs)</th>
+            <th>Remaining (hrs)</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for b in balances %}
+        <tr>
+            <td>{{ b['pto_name'] }}</td>
+            <td>{{ "%.2f"|format(b['hours_allotted']) }}</td>
+            <td>{{ "%.2f"|format(b['hours_used']) }}</td>
+            <td>{{ "%.2f"|format(b['hours_remaining']) }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No PTO balances found for this employee.</p>
+{% endif %}
+
+<hr>
+
+<h2>PTO History</h2>
+
+{# Later we’ll add a button here: "Add PTO Entry" #}
+
+{% if pto_entries %}
+<table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+        <tr>
+            <th>PTO Type</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Hours</th>
+            <th>Notes</th>
+            <th>Created By</th>
+            <th>Created At</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for e in pto_entries %}
+        <tr>
+            <td>{{ e['pto_name'] }}</td>
+            <td>{{ e['start_date'] }}</td>
+            <td>{{ e['end_date'] }}</td>
+            <td>{{ e['hours'] if e['hours'] is not none else '—' }}</td>
+            <td>{{ e['notes'] or '' }}</td>
+            <td>{{ e['manager_name'] or '—' }}</td>
+            <td>{{ e['created_at'] }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No PTO entries yet for this employee.</p>
+{% endif %}
+
+</body>
+</html>

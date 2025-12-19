@@ -165,3 +165,69 @@ def employee_new():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+@app.route("/employees/<int:employee_id>")
+@login_required
+def employee_detail(employee_id):
+    conn = get_db_connection()
+
+    # Get employee info
+    employee = conn.execute(
+        """
+        SELECT id, first_name, last_name, employment_type, phone, email, status
+        FROM employees
+        WHERE id = ?
+        """,
+        (employee_id,),
+    ).fetchone()
+
+    if employee is None:
+        conn.close()
+        return "Employee not found", 404
+
+    # Get PTO balances (Personal/Sick/Vacation)
+    balances = conn.execute(
+        """
+        SELECT
+            pt.display_name AS pto_name,
+            pt.code AS pto_code,
+            b.hours_allotted,
+            b.hours_used,
+            (b.hours_allotted - b.hours_used) AS hours_remaining
+        FROM pto_balances b
+        JOIN pto_types pt ON pt.id = b.pto_type_id
+        WHERE b.employee_id = ?
+        ORDER BY pt.display_name
+        """,
+        (employee_id,),
+    ).fetchall()
+
+    # Get PTO entries (history)
+    pto_entries = conn.execute(
+        """
+        SELECT
+            e.id,
+            pt.display_name AS pto_name,
+            e.start_date,
+            e.end_date,
+            e.hours,
+            e.notes,
+            m.full_name AS manager_name,
+            e.created_at
+        FROM pto_entries e
+        JOIN pto_types pt ON pt.id = e.pto_type_id
+        LEFT JOIN managers m ON m.id = e.created_by_manager_id
+        WHERE e.employee_id = ?
+        ORDER BY e.start_date DESC
+        """,
+        (employee_id,),
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "employee_detail.html",
+        employee=employee,
+        balances=balances,
+        pto_entries=pto_entries,
+    )

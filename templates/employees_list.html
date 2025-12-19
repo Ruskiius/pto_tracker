@@ -23,7 +23,12 @@
     <tbody>
     {% for e in employees %}
         <tr>
-            <td>{{ e['first_name'] }} {{ e['last_name'] }}</td>
+            <td>
+    <a href="{{ url_for('employee_detail', employee_id=e['id']) }}">
+        {{ e['first_name'] }} {{ e['last_name'] }}
+    </a>
+</td>
+
             <td>{{ e['employment_type']|capitalize }}</td>
             <td>{{ e['phone'] or '' }}</td>
             <td>{{ e['email'] or '' }}</td>
