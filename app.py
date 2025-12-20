@@ -161,11 +161,6 @@ def employee_new():
     # GET request: render empty form
     return render_template("employee_form.html")
 
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
-
 @app.route("/employees/<int:employee_id>")
 @login_required
 def employee_detail(employee_id):
@@ -185,7 +180,7 @@ def employee_detail(employee_id):
         conn.close()
         return "Employee not found", 404
 
-    # Get PTO balances (Personal/Sick/Vacation)
+    # Get PTO balances
     balances = conn.execute(
         """
         SELECT
@@ -231,3 +226,9 @@ def employee_detail(employee_id):
         balances=balances,
         pto_entries=pto_entries,
     )
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+
