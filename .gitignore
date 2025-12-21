@@ -2,3 +2,7 @@ venv/
 __pycache__/
 *.pyc
 pto_tracker.db
+venv/
+__pycache__/
+*.pyc
+pto_tracker.db
