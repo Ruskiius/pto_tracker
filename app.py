@@ -268,7 +268,7 @@ def pto_entry_new(employee_id):
         """
         SELECT id, code, display_name
         FROM pto_types
-        WHERE active = 1
+        WHERE is_active = 1
         ORDER BY display_name
         """
     ).fetchall()

@@ -1,8 +1,10 @@
+PRAGMA foreign_keys = ON;
+
 -- Drop tables if you re-run during dev
 DROP TABLE IF EXISTS pto_entries;
 DROP TABLE IF EXISTS pto_balances;
-DROP TABLE IF EXISTS pto_types;
 DROP TABLE IF EXISTS employees;
+DROP TABLE IF EXISTS pto_types;
 DROP TABLE IF EXISTS managers;
 
 -- Managers (people who log into the app)
@@ -25,7 +27,13 @@ CREATE TABLE employees (
     status TEXT NOT NULL DEFAULT 'active'  -- 'active' or 'inactive'
 );
 
-
+-- PTO types (Personal, Sick, Vacation)
+CREATE TABLE pto_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL UNIQUE,         -- e.g. 'PERSONAL'
+    display_name TEXT NOT NULL,        -- e.g. 'Personal Time'
+    is_active INTEGER NOT NULL DEFAULT 1
+);
 
 -- PTO balances per employee per PTO type
 CREATE TABLE pto_balances (
@@ -53,14 +61,4 @@ CREATE TABLE pto_entries (
     FOREIGN KEY (employee_id) REFERENCES employees(id),
     FOREIGN KEY (pto_type_id) REFERENCES pto_types(id),
     FOREIGN KEY (created_by_manager_id) REFERENCES managers(id)
-
 );
-
--- PTO types (Personal, Sick, Vacation)
-CREATE TABLE pto_types (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    code TEXT NOT NULL UNIQUE,         -- e.g. 'PERSONAL'
-    display_name TEXT NOT NULL,        -- e.g. 'Personal Time'
-    is_active INTEGER NOT NULL DEFAULT 1
-);
-
