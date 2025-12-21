@@ -103,6 +103,10 @@ def employees_list():
 
     return render_template("employees_list.html", employees=employees)
 
+
+
+
+
 @app.route("/employees/new", methods=["GET", "POST"])
 @login_required
 def employee_new():
@@ -229,6 +233,8 @@ def employee_detail(employee_id):
         balances=balances,
         pto_entries=pto_entries,
     )
+
+
 
 @app.route("/employees/<int:employee_id>/pto/new", methods=["GET", "POST"])
 @login_required
@@ -434,6 +440,7 @@ def calendar_view():
         month_start=month_start.isoformat(),
         month_end=month_end.isoformat(),
     )
+
 
 
 
