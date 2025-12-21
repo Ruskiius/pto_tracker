@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add PTO Entry</title>
+</head>
+<body>
+
+<h1>Add PTO Entry for {{ employee['first_name'] }} {{ employee['last_name'] }}</h1>
+
+<p>
+    <a href="{{ url_for('employee_detail', employee_id=employee['id']) }}">← Back to Employee</a> |
+    <a href="{{ url_for('employees_list') }}">Employees</a>
+</p>
+
+{% if errors %}
+<ul style="color: red;">
+    {% for error in errors %}
+        <li>{{ error }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<form method="POST">
+    <label>PTO Type:</label><br>
+    <select name="pto_type_id">
+        <option value="">-- Select --</option>
+        {% for t in pto_types %}
+            <option value="{{ t['id'] }}"
+                {% if form_data.get('pto_type_id') == (t['id']|string) %}selected{% endif %}>
+                {{ t['display_name'] }}
+            </option>
+        {% endfor %}
+    </select>
+    <br><br>
+
+    <label>Start Date:</label><br>
+    <input type="date" name="start_date" value="{{ form_data.get('start_date','') }}">
+    <br><br>
+
+    <label>End Date:</label><br>
+    <input type="date" name="end_date" value="{{ form_data.get('end_date','') }}">
+    <br><br>
+
+    <label>Hours (required for now):</label><br>
+    <input type="text" name="hours" placeholder="8" value="{{ form_data.get('hours','') }}">
+    <br><br>
+
+    <label>Notes (optional):</label><br>
+    <textarea name="notes" rows="4" cols="40">{{ form_data.get('notes','') }}</textarea>
+    <br><br>
+
+    <button type="submit">Save PTO Entry</button>
+</form>
+
+</body>
+</html>

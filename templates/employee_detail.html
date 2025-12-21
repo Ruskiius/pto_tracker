@@ -55,7 +55,10 @@
 
 <h2>PTO History</h2>
 
-{# Later we’ll add a button here: "Add PTO Entry" #}
+<p>
+  <a href="{{ url_for('pto_entry_new', employee_id=employee['id']) }}">+ Add PTO Entry</a>
+</p>
+S
 
 {% if pto_entries %}
 <table border="1" cellpadding="6" cellspacing="0">

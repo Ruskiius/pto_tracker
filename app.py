@@ -227,6 +227,129 @@ def employee_detail(employee_id):
         pto_entries=pto_entries,
     )
 
+@app.route("/employees/<int:employee_id>/pto/new", methods=["GET", "POST"])
+@login_required
+def pto_entry_new(employee_id):
+    conn = get_db_connection()
+
+    # Get employee (for page header / validation)
+    employee = conn.execute(
+        "SELECT id, first_name, last_name FROM employees WHERE id = ?",
+        (employee_id,),
+    ).fetchone()
+
+    if employee is None:
+        conn.close()
+        return "Employee not found", 404
+
+    # PTO types for dropdown
+    pto_types = conn.execute(
+        "SELECT id, code, display_name FROM pto_types ORDER BY display_name"
+    ).fetchall()
+
+    if request.method == "POST":
+        pto_type_id = request.form.get("pto_type_id", "").strip()
+        start_date = request.form.get("start_date", "").strip()
+        end_date = request.form.get("end_date", "").strip()
+        hours_str = request.form.get("hours", "").strip()
+        notes = request.form.get("notes", "").strip()
+
+        errors = []
+
+        # Validate pto_type_id exists
+        try:
+            pto_type_id_int = int(pto_type_id)
+        except ValueError:
+            pto_type_id_int = None
+        if not pto_type_id_int:
+            errors.append("Please select a PTO type.")
+
+        if not start_date:
+            errors.append("Start date is required.")
+        if not end_date:
+            errors.append("End date is required.")
+
+        # Validate hours
+        try:
+            hours = float(hours_str)
+            if hours <= 0:
+                errors.append("Hours must be greater than 0.")
+        except ValueError:
+            errors.append("Hours must be a valid number (e.g. 8 or 4.5).")
+            hours = None
+
+        # Optional: ensure balance row exists and check remaining hours
+        if pto_type_id_int and hours is not None:
+            balance = conn.execute(
+                """
+                SELECT hours_allotted, hours_used
+                FROM pto_balances
+                WHERE employee_id = ? AND pto_type_id = ?
+                """,
+                (employee_id, pto_type_id_int),
+            ).fetchone()
+
+            if balance is None:
+                errors.append("No PTO balance found for this PTO type.")
+            else:
+                remaining = balance["hours_allotted"] - balance["hours_used"]
+                if hours > remaining:
+                    errors.append(
+                        f"Not enough PTO remaining. Remaining: {remaining:.2f} hours."
+                    )
+
+        if errors:
+            conn.close()
+            return render_template(
+                "pto_entry_form.html",
+                employee=employee,
+                pto_types=pto_types,
+                errors=errors,
+                form_data={
+                    "pto_type_id": pto_type_id,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "hours": hours_str,
+                    "notes": notes,
+                },
+            )
+
+        # Insert PTO entry
+        conn.execute(
+            """
+            INSERT INTO pto_entries
+                (employee_id, pto_type_id, start_date, end_date, hours, notes, created_by_manager_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (employee_id, pto_type_id_int, start_date, end_date, hours, notes, session.get("user_id")),
+        )
+
+        # Update used hours
+        conn.execute(
+            """
+            UPDATE pto_balances
+            SET hours_used = hours_used + ?
+            WHERE employee_id = ? AND pto_type_id = ?
+            """,
+            (hours, employee_id, pto_type_id_int),
+        )
+
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for("employee_detail", employee_id=employee_id))
+
+    # GET request
+    conn.close()
+    return render_template(
+        "pto_entry_form.html",
+        employee=employee,
+        pto_types=pto_types,
+        form_data={}
+    )
+
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)
