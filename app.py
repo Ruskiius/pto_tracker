@@ -9,6 +9,9 @@ from functools import wraps
 
 from pathlib import Path
 
+
+
+
 app = Flask(__name__)
 app.secret_key = "CHANGE_THIS_TO_SOMETHING_RANDOM_LATER"
 
@@ -35,6 +38,15 @@ def login_required(f):
         return f(*args, **kwargs)
     return wrapper
 
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        if session.get("role") != "admin":
+            return "Forbidden: Admins only", 403
+        return f(*args, **kwargs)
+    return wrapper
 
 
 # --- Routes ---
@@ -253,7 +265,12 @@ def pto_entry_new(employee_id):
 
     # PTO types for dropdown
     pto_types = conn.execute(
-        "SELECT id, code, display_name FROM pto_types ORDER BY display_name"
+        """
+        SELECT id, code, display_name
+        FROM pto_types
+        WHERE active = 1
+        ORDER BY display_name
+        """
     ).fetchall()
 
     if request.method == "POST":
@@ -441,6 +458,86 @@ def calendar_view():
         month_end=month_end.isoformat(),
     )
 
+
+@app.route("/admin/pto-types")
+@admin_required
+def admin_pto_types():
+    conn = get_db_connection()
+    pto_types = conn.execute(
+        """
+        SELECT id, code, display_name, is_active
+        FROM pto_types
+        ORDER BY display_name
+        """
+    ).fetchall()
+    conn.close()
+
+    return render_template("admin_pto_types.html", pto_types=pto_types)
+
+
+@app.route("/admin/pto-types/new", methods=["POST"])
+@admin_required
+def admin_pto_type_new():
+    code = request.form.get("code", "").strip().upper()
+    display_name = request.form.get("display_name", "").strip()
+
+    if not code or not display_name:
+        return redirect(url_for("admin_pto_types"))
+
+    conn = get_db_connection()
+    conn.execute(
+        """
+        INSERT INTO pto_types (code, display_name, is_active)
+        VALUES (?, ?, 1)
+        """,
+        (code, display_name),
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("admin_pto_types"))
+
+
+@app.route("/admin/pto-types/<int:pto_type_id>/edit", methods=["POST"])
+@admin_required
+def admin_pto_type_edit(pto_type_id):
+    display_name = request.form.get("display_name", "").strip()
+
+    if not display_name:
+        return redirect(url_for("admin_pto_types"))
+
+    conn = get_db_connection()
+    conn.execute(
+        """
+        UPDATE pto_types
+        SET display_name = ?
+        WHERE id = ?
+        """,
+        (display_name, pto_type_id),
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("admin_pto_types"))
+
+
+
+@app.route("/admin/pto-types/<int:pto_type_id>/toggle", methods=["POST"])
+@admin_required
+def admin_pto_type_toggle(pto_type_id):
+    conn = get_db_connection()
+    conn.execute(
+        """
+        UPDATE pto_types
+        SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END
+        WHERE id = ?
+        """,
+        (pto_type_id,),
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("admin_pto_types"))
 
 
 

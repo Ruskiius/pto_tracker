@@ -19,6 +19,12 @@
     <li><a href="{{ url_for('calendar_view') }}">Calendar</a></li>
 </ul>
 
+{% if role == 'admin' %}
+<ul>
+  <li><a href="{{ url_for('admin_pto_types') }}">Admin: PTO Types</a></li>
+</ul>
+{% endif %}
+
 
 <form method="get" action="{{ url_for('logout') }}">
     <button type="submit">Logout</button>
