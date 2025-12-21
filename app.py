@@ -1,6 +1,9 @@
 from flask import Flask, render_template, redirect, url_for, request, session
 from werkzeug.security import check_password_hash
 import sqlite3
+from datetime import date, datetime
+import calendar as cal
+
 
 from functools import wraps
 
@@ -346,6 +349,90 @@ def pto_entry_new(employee_id):
         employee=employee,
         pto_types=pto_types,
         form_data={}
+    )
+
+
+@app.route("/calendar")
+@login_required
+def calendar_view():
+    # Query params
+    selected_employee = request.args.get("employee_id", "all").strip()
+    month_str = request.args.get("month", "").strip()  # format YYYY-MM
+
+    # Default to current month if not provided
+    if not month_str:
+        today = date.today()
+        month_str = f"{today.year:04d}-{today.month:02d}"
+
+    # Parse month
+    try:
+        year = int(month_str.split("-")[0])
+        month = int(month_str.split("-")[1])
+        _, last_day = cal.monthrange(year, month)
+        month_start = date(year, month, 1)
+        month_end = date(year, month, last_day)
+    except Exception:
+        return "Invalid month format. Use YYYY-MM.", 400
+
+    conn = get_db_connection()
+
+    # Employees for dropdown
+    employees = conn.execute(
+        """
+        SELECT id, first_name, last_name
+        FROM employees
+        WHERE status = 'active'
+        ORDER BY last_name, first_name
+        """
+    ).fetchall()
+
+    # Build query for PTO entries overlapping the month:
+    # overlap condition: start_date <= month_end AND end_date >= month_start
+    params = [month_end.isoformat(), month_start.isoformat()]
+    employee_filter_sql = ""
+
+    if selected_employee != "all":
+        try:
+            employee_id_int = int(selected_employee)
+            employee_filter_sql = "AND e.employee_id = ?"
+            params.append(employee_id_int)
+        except ValueError:
+            conn.close()
+            return "Invalid employee_id", 400
+
+    entries = conn.execute(
+        f"""
+        SELECT
+            e.id,
+            e.start_date,
+            e.end_date,
+            e.hours,
+            e.notes,
+            pt.display_name AS pto_name,
+            emp.first_name AS emp_first,
+            emp.last_name AS emp_last
+        FROM pto_entries e
+        JOIN pto_types pt ON pt.id = e.pto_type_id
+        JOIN employees emp ON emp.id = e.employee_id
+        WHERE
+            e.start_date <= ?
+            AND e.end_date >= ?
+            {employee_filter_sql}
+        ORDER BY e.start_date ASC, emp.last_name ASC, emp.first_name ASC
+        """,
+        tuple(params),
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "calendar.html",
+        employees=employees,
+        entries=entries,
+        selected_employee=selected_employee,
+        month_str=month_str,
+        month_start=month_start.isoformat(),
+        month_end=month_end.isoformat(),
     )
 
 

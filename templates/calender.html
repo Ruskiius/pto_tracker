@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PTO Calendar</title>
+</head>
+<body>
+
+<h1>PTO Calendar</h1>
+
+<p>
+  <a href="{{ url_for('dashboard') }}">Dashboard</a> |
+  <a href="{{ url_for('employees_list') }}">Employees</a>
+</p>
+
+<form method="GET" action="{{ url_for('calendar_view') }}">
+    <label>Month:</label>
+    <input type="month" name="month" value="{{ month_str }}">
+
+    <label style="margin-left: 12px;">Employee:</label>
+    <select name="employee_id">
+        <option value="all" {% if selected_employee == 'all' %}selected{% endif %}>All Employees</option>
+        {% for emp in employees %}
+            <option value="{{ emp['id'] }}"
+                {% if selected_employee == (emp['id']|string) %}selected{% endif %}>
+                {{ emp['first_name'] }} {{ emp['last_name'] }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <button type="submit" style="margin-left: 12px;">Apply</button>
+</form>
+
+<p>
+  Showing entries overlapping: <strong>{{ month_start }}</strong> to <strong>{{ month_end }}</strong>
+</p>
+
+{% if entries %}
+<table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Employee</th>
+            <th>PTO Type</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Hours</th>
+            <th>Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for e in entries %}
+        <tr>
+            <td>{{ e['emp_first'] }} {{ e['emp_last'] }}</td>
+            <td>{{ e['pto_name'] }}</td>
+            <td>{{ e['start_date'] }}</td>
+            <td>{{ e['end_date'] }}</td>
+            <td>{{ e['hours'] if e['hours'] is not none else '—' }}</td>
+            <td>{{ e['notes'] or '' }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No PTO entries found for this filter.</p>
+{% endif %}
+
+</body>
+</html>
