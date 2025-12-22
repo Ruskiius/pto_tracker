@@ -52,7 +52,8 @@ def admin_required(f):
         if "user_id" not in session:
             return redirect(url_for("login"))
         if session.get("role") != "admin":
-            return abort(403)
+            flash("Admin access required.")
+            return redirect(url_for("dashboard"))
         return f(*args, **kwargs)
     return wrapper
 
@@ -484,6 +485,181 @@ def calendar_view():
         month_str=month_str,
         month_start=month_start.isoformat(),
         month_end=month_end.isoformat(),
+    )
+
+
+@app.route("/admin/balances")
+@admin_required
+def admin_balances_select_employee():
+    conn = get_db_connection()
+    employees = conn.execute(
+        """
+        SELECT id, first_name, last_name
+        FROM employees
+        WHERE status = 'active'
+        ORDER BY last_name, first_name
+        """
+    ).fetchall()
+    conn.close()
+
+    return render_template(
+        "admin_balances_select_employee.html",
+        employees=employees,
+    )
+
+
+def build_balance_rows(pto_rows, form_data=None):
+    rows = []
+    for row in pto_rows:
+        hours_allotted = row["hours_allotted"]
+        hours_used = row["hours_used"] if row["hours_used"] is not None else 0.0
+
+        if form_data is not None:
+            input_value = form_data.get(str(row["pto_type_id"]), "")
+        else:
+            input_value = "" if hours_allotted is None else f"{hours_allotted:g}"
+
+        remaining = (
+            None
+            if hours_allotted is None
+            else float(hours_allotted) - float(hours_used)
+        )
+
+        rows.append(
+            {
+                "pto_type_id": row["pto_type_id"],
+                "display_name": row["display_name"],
+                "hours_allotted": hours_allotted,
+                "hours_used": hours_used,
+                "remaining": remaining,
+                "input_value": input_value,
+            }
+        )
+    return rows
+
+
+@app.route("/admin/balances/<int:employee_id>", methods=["GET", "POST"])
+@admin_required
+def admin_balances_edit(employee_id):
+    conn = get_db_connection()
+    employee = conn.execute(
+        """
+        SELECT id, first_name, last_name
+        FROM employees
+        WHERE id = ?
+        """,
+        (employee_id,),
+    ).fetchone()
+
+    if employee is None:
+        conn.close()
+        abort(404)
+
+    pto_rows = conn.execute(
+        """
+        SELECT
+            pt.id AS pto_type_id,
+            pt.display_name,
+            b.hours_allotted,
+            b.hours_used
+        FROM pto_types pt
+        LEFT JOIN pto_balances b ON b.pto_type_id = pt.id AND b.employee_id = ?
+        WHERE pt.is_active = 1
+        ORDER BY pt.display_name
+        """,
+        (employee_id,),
+    ).fetchall()
+
+    if request.method == "POST":
+        errors = []
+        form_data = {}
+        updates = []
+
+        for row in pto_rows:
+            field_name = f"hours_allotted_{row['pto_type_id']}"
+            raw_value = request.form.get(field_name, "").strip()
+            form_data[str(row["pto_type_id"])] = raw_value
+
+            hours_used = row["hours_used"] if row["hours_used"] is not None else 0.0
+            has_balance = row["hours_allotted"] is not None
+
+            if raw_value == "":
+                if has_balance:
+                    errors.append(
+                        f"Hours allotted for {row['display_name']} is required."
+                    )
+                    continue
+                new_allotted = 40.0
+            else:
+                try:
+                    new_allotted = float(raw_value)
+                except ValueError:
+                    errors.append(
+                        f"Hours allotted for {row['display_name']} must be a number."
+                    )
+                    continue
+
+                if new_allotted < 0:
+                    errors.append(
+                        f"Hours allotted for {row['display_name']} must be zero or more."
+                    )
+                    continue
+
+            if new_allotted < hours_used:
+                errors.append(
+                    f"Hours allotted for {row['display_name']} cannot be less than hours already used ({hours_used})."
+                )
+                continue
+
+            updates.append(
+                {
+                    "pto_type_id": row["pto_type_id"],
+                    "new_allotted": new_allotted,
+                    "has_balance": has_balance,
+                }
+            )
+
+        if errors:
+            balance_rows = build_balance_rows(pto_rows, form_data=form_data)
+            conn.close()
+            return render_template(
+                "admin_balances_edit.html",
+                employee=employee,
+                balance_rows=balance_rows,
+                errors=errors,
+            )
+
+        for update in updates:
+            if update["has_balance"]:
+                conn.execute(
+                    """
+                    UPDATE pto_balances
+                    SET hours_allotted = ?
+                    WHERE employee_id = ? AND pto_type_id = ?
+                    """,
+                    (update["new_allotted"], employee_id, update["pto_type_id"]),
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO pto_balances (employee_id, pto_type_id, hours_allotted, hours_used)
+                    VALUES (?, ?, ?, 0)
+                    """,
+                    (employee_id, update["pto_type_id"], update["new_allotted"]),
+                )
+
+        conn.commit()
+        conn.close()
+        flash("PTO balances updated.")
+        return redirect(url_for("admin_balances_edit", employee_id=employee_id))
+
+    balance_rows = build_balance_rows(pto_rows)
+    conn.close()
+    return render_template(
+        "admin_balances_edit.html",
+        employee=employee,
+        balance_rows=balance_rows,
+        errors=[],
     )
 
 

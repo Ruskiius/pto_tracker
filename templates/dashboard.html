@@ -14,6 +14,7 @@
     <li><a href="{{ url_for('employees_list') }}">Manage Employees</a></li>
     <li><a href="{{ url_for('calendar_view') }}">Calendar</a></li>
     {% if role == 'admin' %}
+    <li><a href="{{ url_for('admin_balances_select_employee') }}">Admin: PTO Balances</a></li>
     <li><a href="{{ url_for('admin_pto_types') }}">Admin: PTO Types</a></li>
     {% endif %}
 </ul>
