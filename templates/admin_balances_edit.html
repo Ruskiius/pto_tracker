@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit PTO Balances</title>
+</head>
+<body>
+    <h1>Edit PTO Balances for {{ employee['first_name'] }} {{ employee['last_name'] }}</h1>
+
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('employees_list') }}">Employees</a></li>
+            <li><a href="{{ url_for('calendar_view') }}">Calendar</a></li>
+            <li><a href="{{ url_for('admin_balances_select_employee') }}">Admin: PTO Balances</a></li>
+            <li><a href="{{ url_for('admin_pto_types') }}">Admin: PTO Types</a></li>
+        </ul>
+    </nav>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div style="color: green;">
+            <ul>
+                {% for msg in messages %}
+                    <li>{{ msg }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    {% if errors %}
+        <div style="color: red;">
+            <ul>
+                {% for error in errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('admin_balances_edit', employee_id=employee['id']) }}">
+        {% if not balance_rows %}
+            <p>No active PTO types available.</p>
+        {% else %}
+        <table border="1" cellpadding="6">
+            <tr>
+                <th>PTO Type</th>
+                <th>Hours Allotted</th>
+                <th>Hours Used</th>
+                <th>Remaining</th>
+            </tr>
+            {% for row in balance_rows %}
+            <tr>
+                <td>{{ row.display_name }}</td>
+                <td>
+                    <input type="number" name="hours_allotted_{{ row.pto_type_id }}" min="0" step="0.25" value="{{ row.input_value }}">
+                </td>
+                <td>{{ '%.2f'|format(row.hours_used) }}</td>
+                <td>
+                    {% if row.remaining is none %}
+                        N/A
+                    {% else %}
+                        {{ '%.2f'|format(row.remaining) }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        <p style="margin-top: 10px;">Leave blank for new balances to default to 40 hours.</p>
+        <button type="submit">Save Balances</button>
+        {% endif %}
+    </form>
+</body>
+</html>
