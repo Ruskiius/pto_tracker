@@ -46,23 +46,26 @@
         </tr>
 
         {% for t in pto_types %}
+        {% set form_id = 'pto-type-action-' ~ t['id'] %}
         <tr>
             <td>{{ t['code'] }}</td>
             <td>
-                <form method="POST" action="{{ url_for('admin_pto_type_edit', pto_type_id=t['id']) }}">
-                    <input type="text" name="display_name" value="{{ t['display_name'] }}" required>
-                    <button type="submit">Save</button>
-                </form>
+                <input form="{{ form_id }}" type="text" name="display_name" value="{{ t['display_name'] }}" required>
             </td>
             <td>{{ 'Active' if t['is_active'] else 'Inactive' }}</td>
             <td>
-                {% if t['is_active'] %}
-                <form method="POST" action="{{ url_for('admin_pto_type_deactivate', pto_type_id=t['id']) }}">
-                    <button type="submit">Deactivate</button>
+                <form id="{{ form_id }}" method="POST" action="{{ url_for('admin_pto_type_action', pto_type_id=t['id']) }}">
+                    <select name="action" required>
+                        <option value="edit">Edit name</option>
+                        {% if t['is_active'] %}
+                        <option value="deactivate">Deactivate</option>
+                        {% else %}
+                        <option value="reactivate">Reactivate</option>
+                        {% endif %}
+                        <option value="delete">Delete</option>
+                    </select>
+                    <button type="submit">Apply</button>
                 </form>
-                {% else %}
-                <em>Deactivated</em>
-                {% endif %}
             </td>
         </tr>
         {% endfor %}
