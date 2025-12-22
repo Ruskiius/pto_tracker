@@ -15,6 +15,7 @@ def init_db():
 
     print(f"Creating new database at {DB_PATH}")
     conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON;")
 
     with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
         schema_sql = f.read()
@@ -24,12 +25,12 @@ def init_db():
     # Seed PTO types
     print("Inserting PTO types...")
     pto_types = [
-        ("PERSONAL", "Personal Time"),
-        ("SICK", "Sick Time"),
-        ("VACATION", "Vacation Time"),
+        ("PERSONAL", "Personal Time", 1),
+        ("SICK", "Sick Time", 1),
+        ("VACATION", "Vacation Time", 1),
     ]
     conn.executemany(
-        "INSERT INTO pto_types (code, display_name) VALUES (?, ?)",
+        "INSERT INTO pto_types (code, display_name, is_active) VALUES (?, ?, ?)",
         pto_types,
     )
 

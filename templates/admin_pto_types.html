@@ -4,53 +4,71 @@
     <title>PTO Types (Admin)</title>
 </head>
 <body>
+    <h1>PTO Types (Admin)</h1>
 
-<h1>PTO Types (Admin)</h1>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('employees_list') }}">Employees</a></li>
+            <li><a href="{{ url_for('calendar_view') }}">Calendar</a></li>
+        </ul>
+    </nav>
 
-<p>
-  <a href="{{ url_for('dashboard') }}">Dashboard</a>
-</p>
+    {% if errors %}
+    <div style="color: red;">
+        <ul>
+        {% for error in errors %}
+            <li>{{ error }}</li>
+        {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
 
-<h2>Add PTO Type</h2>
+    <h2>Add PTO Type</h2>
+    <form method="POST" action="{{ url_for('admin_pto_types') }}">
+        <input type="text" name="code" placeholder="CODE (e.g. FLOAT)" required>
+        <input type="text" name="display_name" placeholder="Display Name" required>
+        <button type="submit">Add</button>
+    </form>
 
-<form method="POST" action="{{ url_for('admin_pto_type_new') }}">
-    <input type="text" name="code" placeholder="CODE (e.g. FLOAT)" required>
-    <input type="text" name="display_name" placeholder="Display Name" required>
-    <button type="submit">Add</button>
-</form>
+    <hr>
 
-<hr>
+    <h2>Existing PTO Types</h2>
+    {% if not pto_types %}
+        <p>No PTO types found.</p>
+    {% else %}
+    <table border="1" cellpadding="6">
+        <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
 
-<h2>Existing PTO Types</h2>
-
-<table border="1" cellpadding="6">
-    <tr>
-        <th>Code</th>
-        <th>Name</th>
-        <th>Status</th>
-        <th>Actions</th>
-    </tr>
-
-    {% for t in pto_types %}
-    <tr>
-        <td>{{ t['code'] }}</td>
-        <td>
-            <form method="POST" action="{{ url_for('admin_pto_type_edit', pto_type_id=t['id']) }}">
-                <input type="text" name="display_name" value="{{ t['display_name'] }}">
-                <button type="submit">Save</button>
-            </form>
-        </td>
-        <td>{{ 'Active' if t['is_active'] else 'Inactive' }}</td>
-        <td>
-            <form method="POST" action="{{ url_for('admin_pto_type_toggle', pto_type_id=t['id']) }}">
-                <button type="submit">
-                    {{ 'Deactivate' if t['is_active'] else 'Activate' }}
-                </button>
-            </form>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
-
+        {% for t in pto_types %}
+        <tr>
+            <td>{{ t['code'] }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('admin_pto_type_edit', pto_type_id=t['id']) }}">
+                    <input type="text" name="display_name" value="{{ t['display_name'] }}" required>
+                    <button type="submit">Save</button>
+                </form>
+            </td>
+            <td>{{ 'Active' if t['is_active'] else 'Inactive' }}</td>
+            <td>
+                {% if t['is_active'] %}
+                <form method="POST" action="{{ url_for('admin_pto_type_deactivate', pto_type_id=t['id']) }}">
+                    <button type="submit">Deactivate</button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('admin_pto_type_activate', pto_type_id=t['id']) }}">
+                    <button type="submit">Activate</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
 </body>
 </html>
