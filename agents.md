@@ -1,85 +1,55 @@
-# AGENTS.md – Project Context for AI Contributors
+# PTO Tracker – AI Agent Reference
 
-## Project Overview
-This is a Flask-based internal PTO (Paid Time Off) tracking application.
+This project is a Flask + SQLite PTO tracking app for a small company (≈12 employees).
+It is an internal, manager-facing tool (employees do not log in).
 
-- Stack: Flask, SQLite, Werkzeug, server-rendered HTML (Jinja)
-- Audience: Managers only (no employee self-service yet)
-- Scale: ~12 employees
-- Philosophy: Simple, explicit, boring > clever
+## Tech Stack
+- Python
+- Flask (server-rendered HTML)
+- SQLite
+- Werkzeug (auth + password hashing)
+- No frontend framework (no React)
 
-This project is intentionally NOT a microservice, SPA, or React app.
-
----
-
-## Core Concepts (DO NOT VIOLATE)
-
-- Authentication is session-based (Flask sessions)
+## Auth & Roles
+- Users are "managers"
 - Roles:
   - admin
   - manager
-- Admins have elevated privileges
-- Managers can view/add PTO but not modify system configuration
-- SQLite is the source of truth
-- Soft deletes are preferred over hard deletes where history matters
+- Only admins can:
+  - manage PTO types
+  - edit PTO balances
+  - manage other managers (future)
 
----
+Role is stored in session as `session["role"]`.
 
-## Current Features (Implemented)
-
-- Manager login (username/password, hashed)
-- Employee CRUD (create + view)
+## Core Features Already Implemented
+- Manager login (username/password)
+- Employee CRUD (soft delete via `status`)
 - PTO balances per employee per PTO type
-- PTO entries with automatic balance updates
-- Calendar view with filters
+- PTO entry creation (updates balances)
+- Calendar view (month + employee filter)
 - Admin-only PTO type management:
-  - Edit name
-  - Deactivate (soft delete)
-  - Delete (hard delete when safe)
+  - Edit PTO type name
+  - Deactivate PTO types (soft delete)
+  - Delete PTO types (only if no dependencies)
 
----
+## PTO Type Rules
+- PTO types must NOT be hard-deleted if:
+  - PTO entries exist
+  - PTO balances exist
+- Prefer soft delete (`is_active = 0`)
+- Editing name must not break historical entries
 
-## PTO Types Rules
-
-- PTO types are stored in `pto_types`
-- PTO types may be:
-  - Active
-  - Deactivated (hidden, but historical data preserved)
-- Deleting a PTO type is only allowed if:
-  - No PTO entries reference it
-- Deactivation is preferred over deletion
-
----
-
-## Definition of Done (IMPORTANT)
-
-A feature is considered DONE only if:
-
-- Role checks are enforced server-side
-- Database integrity is preserved
-- UI reflects permissions correctly
-- No silent data corruption
-- No breaking existing functionality
-- Code follows existing style patterns
-- No unnecessary abstractions
-
----
-
-## What NOT to Do
-
-- Do NOT introduce React, Vue, or SPA patterns
-- Do NOT convert auth to JWT
-- Do NOT auto-migrate schemas without explicit approval
-- Do NOT remove soft-delete behavior without discussion
-- Do NOT “simplify” by deleting history
-
----
-
-## AI Instructions
-
-If you are an AI agent:
-
-- Read this file before making changes
+## Development Rules
+- Do NOT rewrite existing working routes
+- Do NOT remove role checks
 - Prefer small, incremental changes
-- Ask for clarification if unsure
-- Preserve existing behavior unless explicitly instructed otherwise
+- Avoid unnecessary abstractions
+- Keep logic in Flask routes, not client-side JS
+
+## Definition of Done (for any feature)
+- Role restrictions enforced
+- DB integrity preserved
+- No existing features broken
+- UI accessible from dashboard
+- Works with SQLite locally
