@@ -12,15 +12,13 @@ from pathlib import Path
 
 
 
-app = Flask(__name__)
-app.secret_key = "CHANGE_THIS_TO_SOMETHING_RANDOM_LATER"
-
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "pto_tracker.db"
 
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON;")
     conn.row_factory = sqlite3.Row  # access columns by name
     return conn
 
@@ -159,8 +157,10 @@ def employee_new():
         )
         employee_id = cur.lastrowid
 
-        # Fetch PTO types
-        pto_types = conn.execute("SELECT id FROM pto_types").fetchall()
+        # Fetch active PTO types
+        pto_types = conn.execute(
+            "SELECT id FROM pto_types WHERE is_active = 1"
+        ).fetchall()
 
         # Create PTO balances with default 40 hours allotted for each type
         for pto_type in pto_types:
