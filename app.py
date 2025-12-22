@@ -7,15 +7,6 @@ from flask import (
     session,
     abort,
 )
-from flask import (
-    Flask,
-    render_template,
-    redirect,
-    url_for,
-    request,
-    session,
-    abort,
-)
 from werkzeug.security import check_password_hash
 import sqlite3
 import re
@@ -562,10 +553,10 @@ def admin_pto_type_action(pto_type_id):
     conn.execute(
         """
         UPDATE pto_types
-        SET is_active = 0
+        SET display_name = ?
         WHERE id = ?
         """,
-        (pto_type_id,),
+        (display_name, pto_type_id),
     )
     conn.commit()
     conn.close()
