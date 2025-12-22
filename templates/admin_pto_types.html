@@ -14,18 +14,30 @@
         </ul>
     </nav>
 
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div style="color: green;">
+            <ul>
+                {% for msg in messages %}
+                    <li>{{ msg }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    {% endwith %}
+
     {% if errors %}
-    <div style="color: red;">
-        <ul>
-        {% for error in errors %}
-            <li>{{ error }}</li>
-        {% endfor %}
-        </ul>
-    </div>
+        <div style="color: red;">
+            <ul>
+            {% for error in errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+            </ul>
+        </div>
     {% endif %}
 
     <h2>Add PTO Type</h2>
-    <form method="POST" action="{{ url_for('admin_pto_types') }}">
+    <form method="POST" action="{{ url_for('admin_pto_type_new') }}">
         <input type="text" name="code" placeholder="CODE (e.g. FLOAT)" required>
         <input type="text" name="display_name" placeholder="Display Name" required>
         <button type="submit">Add</button>
@@ -46,25 +58,25 @@
         </tr>
 
         {% for t in pto_types %}
-        {% set form_id = 'pto-type-action-' ~ t['id'] %}
         <tr>
             <td>{{ t['code'] }}</td>
             <td>
-                <input form="{{ form_id }}" type="text" name="display_name" value="{{ t['display_name'] }}" required>
+                <form method="POST" action="{{ url_for('admin_pto_type_edit', pto_type_id=t['id']) }}" style="display: inline;">
+                    <input type="text" name="display_name" value="{{ t['display_name'] }}" required>
+                    <button type="submit">Save</button>
+                </form>
             </td>
             <td>{{ 'Active' if t['is_active'] else 'Inactive' }}</td>
             <td>
-                <form id="{{ form_id }}" method="POST" action="{{ url_for('admin_pto_type_action', pto_type_id=t['id']) }}">
-                    <select name="action" required>
-                        <option value="edit">Edit name</option>
-                        {% if t['is_active'] %}
-                        <option value="deactivate">Deactivate</option>
-                        {% else %}
-                        <option value="reactivate">Reactivate</option>
-                        {% endif %}
-                        <option value="delete">Delete</option>
-                    </select>
-                    <button type="submit">Apply</button>
+                <form method="POST" action="{{ url_for('admin_pto_type_toggle', pto_type_id=t['id']) }}" style="display: inline;">
+                    {% if t['is_active'] %}
+                        <button type="submit">Deactivate</button>
+                    {% else %}
+                        <button type="submit">Reactivate</button>
+                    {% endif %}
+                </form>
+                <form method="POST" action="{{ url_for('admin_pto_type_delete', pto_type_id=t['id']) }}" style="display: inline;" onsubmit="return confirm('Delete this PTO type?');">
+                    <button type="submit">Delete</button>
                 </form>
             </td>
         </tr>

@@ -6,6 +6,7 @@ from flask import (
     request,
     session,
     abort,
+    flash,
 )
 from werkzeug.security import check_password_hash
 import sqlite3
@@ -486,101 +487,157 @@ def calendar_view():
     )
 
 
-@app.route("/admin/pto-types", methods=["GET", "POST"])
+@app.route("/admin/pto-types", methods=["GET"])
 @admin_required
 def admin_pto_types():
+    return render_admin_pto_types()
+
+
+@app.route("/admin/pto-types/new", methods=["POST"])
+@admin_required
+def admin_pto_type_new():
     errors = []
 
-    if request.method == "POST":
-        code_raw = request.form.get("code", "")
-        display_name = request.form.get("display_name", "").strip()
+    code_raw = request.form.get("code", "")
+    display_name = request.form.get("display_name", "").strip()
 
-        normalized_code = re.sub(r"[^A-Za-z0-9]+", "_", code_raw.strip().upper()).strip("_")
+    normalized_code = re.sub(r"[^A-Za-z0-9]+", "_", code_raw.strip().upper()).strip("_")
 
-        if not normalized_code:
-            errors.append("Code is required and must contain letters or numbers.")
-        if not display_name:
-            errors.append("Display name is required.")
+    if not normalized_code:
+        errors.append("Code is required and must contain letters or numbers.")
+    if not display_name:
+        errors.append("Display name is required.")
 
-        if not errors:
-            conn = get_db_connection()
-            try:
-                cur = conn.execute(
+    if not errors:
+        conn = get_db_connection()
+        try:
+            cur = conn.execute(
+                """
+                INSERT INTO pto_types (code, display_name, is_active)
+                VALUES (?, ?, 1)
+                """,
+                (normalized_code, display_name),
+            )
+            pto_type_id = cur.lastrowid
+
+            # Create default balances for active employees so the new PTO type is usable immediately.
+            employees = conn.execute(
+                "SELECT id FROM employees WHERE status = 'active'"
+            ).fetchall()
+            balance_rows = [
+                (emp["id"], pto_type_id, 40.0, 0.0) for emp in employees
+            ]
+            if balance_rows:
+                conn.executemany(
                     """
-                    INSERT INTO pto_types (code, display_name, is_active)
-                    VALUES (?, ?, 1)
+                    INSERT OR IGNORE INTO pto_balances (employee_id, pto_type_id, hours_allotted, hours_used)
+                    VALUES (?, ?, ?, ?)
                     """,
-                    (normalized_code, display_name),
+                    balance_rows,
                 )
-                pto_type_id = cur.lastrowid
 
-                employees = conn.execute("SELECT id FROM employees").fetchall()
-                balance_rows = [
-                    (emp["id"], pto_type_id, 40.0, 0.0) for emp in employees
-                ]
-                if balance_rows:
-                    conn.executemany(
-                        """
-                        INSERT OR IGNORE INTO pto_balances (employee_id, pto_type_id, hours_allotted, hours_used)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        balance_rows,
-                    )
-
-                conn.commit()
-            except sqlite3.IntegrityError:
-                errors.append("Code must be unique.")
-                conn.rollback()
-            finally:
-                conn.close()
-
-            if not errors:
-                return redirect(url_for("admin_pto_types"))
+            conn.commit()
+            flash("PTO type added.")
+            return redirect(url_for("admin_pto_types"))
+        except sqlite3.IntegrityError:
+            errors.append("Code must be unique.")
+            conn.rollback()
+        finally:
+            conn.close()
 
     return render_admin_pto_types(errors)
 
 
-@app.route("/admin/pto-types/<int:pto_type_id>/action", methods=["POST"])
+@app.route("/admin/pto-types/<int:pto_type_id>/edit", methods=["POST"])
 @admin_required
-def admin_pto_type_action(pto_type_id):
-    action = request.form.get("action", "").strip().lower()
+def admin_pto_type_edit(pto_type_id):
     display_name = request.form.get("display_name", "").strip()
-
     errors = []
-    performed_action = False
 
+    if not display_name:
+        errors.append("Display name is required.")
+
+    if not errors:
+        conn = get_db_connection()
+        cur = conn.execute("SELECT id FROM pto_types WHERE id = ?", (pto_type_id,))
+        if cur.fetchone() is None:
+            conn.close()
+            abort(404)
+        conn.execute(
+            """
+            UPDATE pto_types
+            SET display_name = ?
+            WHERE id = ?
+            """,
+            (display_name, pto_type_id),
+        )
+        conn.commit()
+        conn.close()
+        flash("PTO type updated.")
+        return redirect(url_for("admin_pto_types"))
+
+    return render_admin_pto_types(errors)
+
+
+@app.route("/admin/pto-types/<int:pto_type_id>/toggle", methods=["POST"])
+@admin_required
+def admin_pto_type_toggle(pto_type_id):
     conn = get_db_connection()
+    pto_type = conn.execute(
+        "SELECT id, is_active FROM pto_types WHERE id = ?",
+        (pto_type_id,),
+    ).fetchone()
+
+    if pto_type is None:
+        conn.close()
+        abort(404)
+
+    new_status = 0 if pto_type["is_active"] else 1
     conn.execute(
-        """
-        UPDATE pto_types
-        SET display_name = ?
-        WHERE id = ?
-        """,
-        (display_name, pto_type_id),
+        "UPDATE pto_types SET is_active = ? WHERE id = ?",
+        (new_status, pto_type_id),
     )
     conn.commit()
     conn.close()
 
+    flash("PTO type deactivated." if new_status == 0 else "PTO type reactivated.")
     return redirect(url_for("admin_pto_types"))
 
 
-@app.route("/admin/pto-types/<int:pto_type_id>/deactivate", methods=["POST"])
+@app.route("/admin/pto-types/<int:pto_type_id>/delete", methods=["POST"])
 @admin_required
-def admin_pto_type_deactivate(pto_type_id):
+def admin_pto_type_delete(pto_type_id):
+    errors = []
     conn = get_db_connection()
-    conn.execute(
-        """
-        UPDATE pto_types
-        SET is_active = 0
-        WHERE id = ?
-        """,
+
+    pto_type = conn.execute(
+        "SELECT id, display_name FROM pto_types WHERE id = ?",
         (pto_type_id,),
-    )
+    ).fetchone()
+    if pto_type is None:
+        conn.close()
+        abort(404)
+
+    balances_count = conn.execute(
+        "SELECT COUNT(*) FROM pto_balances WHERE pto_type_id = ?",
+        (pto_type_id,),
+    ).fetchone()[0]
+    entries_count = conn.execute(
+        "SELECT COUNT(*) FROM pto_entries WHERE pto_type_id = ?",
+        (pto_type_id,),
+    ).fetchone()[0]
+
+    if balances_count > 0 or entries_count > 0:
+        errors.append(
+            "Cannot delete PTO type; it is in use. Deactivate instead."
+        )
+        conn.close()
+        return render_admin_pto_types(errors)
+
+    conn.execute("DELETE FROM pto_types WHERE id = ?", (pto_type_id,))
     conn.commit()
     conn.close()
-
-    if errors:
-        return render_admin_pto_types(errors)
+    flash("PTO type deleted.")
 
     return redirect(url_for("admin_pto_types"))
 
