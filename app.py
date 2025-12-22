@@ -550,71 +550,34 @@ def admin_pto_type_action(pto_type_id):
     performed_action = False
 
     conn = get_db_connection()
-    try:
-        pto_type = conn.execute(
-            "SELECT id, is_active FROM pto_types WHERE id = ?", (pto_type_id,)
-        ).fetchone()
-        if not pto_type:
-            errors.append("PTO type not found.")
+    conn.execute(
+        """
+        UPDATE pto_types
+        SET is_active = 0
+        WHERE id = ?
+        """,
+        (pto_type_id,),
+    )
+    conn.commit()
+    conn.close()
 
-        if not action:
-            errors.append("Action is required.")
+    return redirect(url_for("admin_pto_types"))
 
-        if not errors:
-            if action == "edit":
-                if not display_name:
-                    errors.append("Display name is required.")
-                else:
-                    result = conn.execute(
-                        """
-                        UPDATE pto_types
-                        SET display_name = ?
-                        WHERE id = ?
-                        """,
-                        (display_name, pto_type_id),
-                    )
-                    performed_action = result.rowcount > 0
 
-            elif action == "deactivate":
-                result = conn.execute(
-                    """
-                    UPDATE pto_types
-                    SET is_active = 0
-                    WHERE id = ?
-                    """,
-                    (pto_type_id,),
-                )
-                performed_action = result.rowcount > 0
-
-            elif action == "reactivate":
-                result = conn.execute(
-                    """
-                    UPDATE pto_types
-                    SET is_active = 1
-                    WHERE id = ?
-                    """,
-                    (pto_type_id,),
-                )
-                performed_action = result.rowcount > 0
-
-            elif action == "delete":
-                conn.execute("DELETE FROM pto_entries WHERE pto_type_id = ?", (pto_type_id,))
-                conn.execute(
-                    "DELETE FROM pto_balances WHERE pto_type_id = ?", (pto_type_id,)
-                )
-                result = conn.execute("DELETE FROM pto_types WHERE id = ?", (pto_type_id,))
-                performed_action = result.rowcount > 0
-
-            else:
-                errors.append("Invalid action selected.")
-
-        if not errors and not performed_action:
-            errors.append("No changes were applied.")
-
-        if performed_action:
-            conn.commit()
-    finally:
-        conn.close()
+@app.route("/admin/pto-types/<int:pto_type_id>/deactivate", methods=["POST"])
+@admin_required
+def admin_pto_type_deactivate(pto_type_id):
+    conn = get_db_connection()
+    conn.execute(
+        """
+        UPDATE pto_types
+        SET is_active = 0
+        WHERE id = ?
+        """,
+        (pto_type_id,),
+    )
+    conn.commit()
+    conn.close()
 
     if errors:
         return render_admin_pto_types(errors)
