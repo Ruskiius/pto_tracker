@@ -549,6 +549,12 @@ def admin_pto_type_action(pto_type_id):
     conn = get_db_connection()
 
     try:
+        pto_type = conn.execute(
+            "SELECT id, is_active FROM pto_types WHERE id = ?", (pto_type_id,)
+        ).fetchone()
+        if not pto_type:
+            return render_admin_pto_types(["PTO type not found."])
+
         if action == "edit":
             if not display_name:
                 return render_admin_pto_types(["Display name is required."])
