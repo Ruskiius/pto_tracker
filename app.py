@@ -526,10 +526,10 @@ def admin_pto_type_edit(pto_type_id):
     conn.execute(
         """
         UPDATE pto_types
-        SET display_name = ?
+        SET is_active = 0
         WHERE id = ?
         """,
-        (display_name, pto_type_id),
+        (pto_type_id,),
     )
     conn.commit()
     conn.close()
