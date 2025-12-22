@@ -540,13 +540,14 @@ def admin_pto_types():
     return render_admin_pto_types(errors)
 
 
-@app.route("/admin/pto-types/<int:pto_type_id>/update", methods=["POST"])
+@app.route("/admin/pto-types/<int:pto_type_id>/action", methods=["POST"])
 @admin_required
-def admin_pto_type_edit(pto_type_id):
+def admin_pto_type_action(pto_type_id):
+    action = request.form.get("action", "").strip().lower()
     display_name = request.form.get("display_name", "").strip()
 
-    if not display_name:
-        return render_admin_pto_types(["Display name is required."])
+    errors = []
+    performed_action = False
 
     conn = get_db_connection()
     conn.execute(
@@ -577,6 +578,9 @@ def admin_pto_type_deactivate(pto_type_id):
     )
     conn.commit()
     conn.close()
+
+    if errors:
+        return render_admin_pto_types(errors)
 
     return redirect(url_for("admin_pto_types"))
 
