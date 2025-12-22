@@ -61,9 +61,7 @@
                     <button type="submit">Deactivate</button>
                 </form>
                 {% else %}
-                <form method="POST" action="{{ url_for('admin_pto_type_activate', pto_type_id=t['id']) }}">
-                    <button type="submit">Activate</button>
-                </form>
+                <em>Deactivated</em>
                 {% endif %}
             </td>
         </tr>

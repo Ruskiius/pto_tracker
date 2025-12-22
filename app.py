@@ -526,10 +526,10 @@ def admin_pto_type_edit(pto_type_id):
     conn.execute(
         """
         UPDATE pto_types
-        SET display_name = ?
+        SET is_active = 0
         WHERE id = ?
         """,
-        (display_name, pto_type_id),
+        (pto_type_id,),
     )
     conn.commit()
     conn.close()
@@ -545,24 +545,6 @@ def admin_pto_type_deactivate(pto_type_id):
         """
         UPDATE pto_types
         SET is_active = 0
-        WHERE id = ?
-        """,
-        (pto_type_id,),
-    )
-    conn.commit()
-    conn.close()
-
-    return redirect(url_for("admin_pto_types"))
-
-
-@app.route("/admin/pto-types/<int:pto_type_id>/activate", methods=["POST"])
-@admin_required
-def admin_pto_type_activate(pto_type_id):
-    conn = get_db_connection()
-    conn.execute(
-        """
-        UPDATE pto_types
-        SET is_active = 1
         WHERE id = ?
         """,
         (pto_type_id,),
