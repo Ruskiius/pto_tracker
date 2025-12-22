@@ -1,6 +1,7 @@
 from flask import Flask, render_template, redirect, url_for, request, session
 from werkzeug.security import check_password_hash
 import sqlite3
+import re
 from datetime import date, datetime
 import calendar as cal
 
@@ -12,15 +13,13 @@ from pathlib import Path
 
 
 
-app = Flask(__name__)
-app.secret_key = "CHANGE_THIS_TO_SOMETHING_RANDOM_LATER"
-
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "pto_tracker.db"
 
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON;")
     conn.row_factory = sqlite3.Row  # access columns by name
     return conn
 
@@ -44,7 +43,7 @@ def admin_required(f):
         if "user_id" not in session:
             return redirect(url_for("login"))
         if session.get("role") != "admin":
-            return "Forbidden: Admins only", 403
+            return redirect(url_for("dashboard"))
         return f(*args, **kwargs)
     return wrapper
 
@@ -159,8 +158,10 @@ def employee_new():
         )
         employee_id = cur.lastrowid
 
-        # Fetch PTO types
-        pto_types = conn.execute("SELECT id FROM pto_types").fetchall()
+        # Fetch active PTO types
+        pto_types = conn.execute(
+            "SELECT id FROM pto_types WHERE is_active = 1"
+        ).fetchall()
 
         # Create PTO balances with default 40 hours allotted for each type
         for pto_type in pto_types:
@@ -210,7 +211,7 @@ def employee_detail(employee_id):
             (b.hours_allotted - b.hours_used) AS hours_remaining
         FROM pto_balances b
         JOIN pto_types pt ON pt.id = b.pto_type_id
-        WHERE b.employee_id = ?
+        WHERE b.employee_id = ? AND pt.is_active = 1
         ORDER BY pt.display_name
         """,
         (employee_id,),
@@ -459,52 +460,67 @@ def calendar_view():
     )
 
 
-@app.route("/admin/pto-types")
+@app.route("/admin/pto-types", methods=["GET", "POST"])
 @admin_required
 def admin_pto_types():
-    conn = get_db_connection()
-    pto_types = conn.execute(
-        """
-        SELECT id, code, display_name, is_active
-        FROM pto_types
-        ORDER BY display_name
-        """
-    ).fetchall()
-    conn.close()
+    errors = []
 
-    return render_template("admin_pto_types.html", pto_types=pto_types)
+    if request.method == "POST":
+        code_raw = request.form.get("code", "")
+        display_name = request.form.get("display_name", "").strip()
+
+        normalized_code = re.sub(r"[^A-Za-z0-9]+", "_", code_raw.strip().upper()).strip("_")
+
+        if not normalized_code:
+            errors.append("Code is required and must contain letters or numbers.")
+        if not display_name:
+            errors.append("Display name is required.")
+
+        if not errors:
+            conn = get_db_connection()
+            try:
+                cur = conn.execute(
+                    """
+                    INSERT INTO pto_types (code, display_name, is_active)
+                    VALUES (?, ?, 1)
+                    """,
+                    (normalized_code, display_name),
+                )
+                pto_type_id = cur.lastrowid
+
+                employees = conn.execute("SELECT id FROM employees").fetchall()
+                balance_rows = [
+                    (emp["id"], pto_type_id, 40.0, 0.0) for emp in employees
+                ]
+                if balance_rows:
+                    conn.executemany(
+                        """
+                        INSERT OR IGNORE INTO pto_balances (employee_id, pto_type_id, hours_allotted, hours_used)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        balance_rows,
+                    )
+
+                conn.commit()
+            except sqlite3.IntegrityError:
+                errors.append("Code must be unique.")
+                conn.rollback()
+            finally:
+                conn.close()
+
+            if not errors:
+                return redirect(url_for("admin_pto_types"))
+
+    return render_admin_pto_types(errors)
 
 
-@app.route("/admin/pto-types/new", methods=["POST"])
-@admin_required
-def admin_pto_type_new():
-    code = request.form.get("code", "").strip().upper()
-    display_name = request.form.get("display_name", "").strip()
-
-    if not code or not display_name:
-        return redirect(url_for("admin_pto_types"))
-
-    conn = get_db_connection()
-    conn.execute(
-        """
-        INSERT INTO pto_types (code, display_name, is_active)
-        VALUES (?, ?, 1)
-        """,
-        (code, display_name),
-    )
-    conn.commit()
-    conn.close()
-
-    return redirect(url_for("admin_pto_types"))
-
-
-@app.route("/admin/pto-types/<int:pto_type_id>/edit", methods=["POST"])
+@app.route("/admin/pto-types/<int:pto_type_id>/update", methods=["POST"])
 @admin_required
 def admin_pto_type_edit(pto_type_id):
     display_name = request.form.get("display_name", "").strip()
 
     if not display_name:
-        return redirect(url_for("admin_pto_types"))
+        return render_admin_pto_types(["Display name is required."])
 
     conn = get_db_connection()
     conn.execute(
@@ -521,15 +537,14 @@ def admin_pto_type_edit(pto_type_id):
     return redirect(url_for("admin_pto_types"))
 
 
-
-@app.route("/admin/pto-types/<int:pto_type_id>/toggle", methods=["POST"])
+@app.route("/admin/pto-types/<int:pto_type_id>/deactivate", methods=["POST"])
 @admin_required
-def admin_pto_type_toggle(pto_type_id):
+def admin_pto_type_deactivate(pto_type_id):
     conn = get_db_connection()
     conn.execute(
         """
         UPDATE pto_types
-        SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END
+        SET is_active = 0
         WHERE id = ?
         """,
         (pto_type_id,),
@@ -539,8 +554,22 @@ def admin_pto_type_toggle(pto_type_id):
 
     return redirect(url_for("admin_pto_types"))
 
+def render_admin_pto_types(errors=None):
+    conn = get_db_connection()
+    pto_types = conn.execute(
+        """
+        SELECT id, code, display_name, is_active
+        FROM pto_types
+        ORDER BY is_active DESC, display_name
+        """,
+    ).fetchall()
+    conn.close()
 
-
+    return render_template(
+        "admin_pto_types.html",
+        pto_types=pto_types,
+        errors=errors or [],
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
