@@ -618,8 +618,12 @@ def admin_pto_type_delete(pto_type_id):
         conn.close()
         abort(404)
 
-    balances_count = conn.execute(
-        "SELECT COUNT(*) FROM pto_balances WHERE pto_type_id = ?",
+    balances_with_usage = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM pto_balances
+        WHERE pto_type_id = ? AND hours_used > 0
+        """,
         (pto_type_id,),
     ).fetchone()[0]
     entries_count = conn.execute(
@@ -627,13 +631,14 @@ def admin_pto_type_delete(pto_type_id):
         (pto_type_id,),
     ).fetchone()[0]
 
-    if balances_count > 0 or entries_count > 0:
+    if balances_with_usage > 0 or entries_count > 0:
         errors.append(
             "Cannot delete PTO type; it is in use. Deactivate instead."
         )
         conn.close()
         return render_admin_pto_types(errors)
 
+    conn.execute("DELETE FROM pto_balances WHERE pto_type_id = ?", (pto_type_id,))
     conn.execute("DELETE FROM pto_types WHERE id = ?", (pto_type_id,))
     conn.commit()
     conn.close()
