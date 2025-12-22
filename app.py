@@ -543,7 +543,7 @@ def admin_pto_types():
 @app.route("/admin/pto-types/<int:pto_type_id>/action", methods=["POST"])
 @admin_required
 def admin_pto_type_action(pto_type_id):
-    action = request.form.get("action", "").strip()
+    action = request.form.get("action", "").strip().lower()
     display_name = request.form.get("display_name", "").strip()
 
     conn = get_db_connection()
@@ -554,6 +554,9 @@ def admin_pto_type_action(pto_type_id):
         ).fetchone()
         if not pto_type:
             return render_admin_pto_types(["PTO type not found."])
+
+        if not action:
+            return render_admin_pto_types(["Action is required."])
 
         if action == "edit":
             if not display_name:
