@@ -1,12 +1,4 @@
-from flask import (
-    Flask,
-    render_template,
-    redirect,
-    url_for,
-    request,
-    session,
-    abort,
-)
+from flask import Flask, render_template, redirect, url_for, request, session
 from werkzeug.security import check_password_hash
 import sqlite3
 import re
@@ -51,27 +43,9 @@ def admin_required(f):
         if "user_id" not in session:
             return redirect(url_for("login"))
         if session.get("role") != "admin":
-            return abort(403)
+            return redirect(url_for("dashboard"))
         return f(*args, **kwargs)
     return wrapper
-
-
-def ensure_default_pto_types(conn):
-    """Ensure the default PTO types exist in the database."""
-
-    existing_count = conn.execute("SELECT COUNT(*) FROM pto_types").fetchone()[0]
-
-    if existing_count == 0:
-        default_types = [
-            ("PERSONAL", "Personal Time", 1),
-            ("SICK", "Sick Time", 1),
-            ("VACATION", "Vacation Time", 1),
-        ]
-        conn.executemany(
-            "INSERT OR IGNORE INTO pto_types (code, display_name, is_active) VALUES (?, ?, ?)",
-            default_types,
-        )
-        conn.commit()
 
 
 # --- Routes ---
@@ -552,10 +526,10 @@ def admin_pto_type_edit(pto_type_id):
     conn.execute(
         """
         UPDATE pto_types
-        SET display_name = ?
+        SET is_active = 0
         WHERE id = ?
         """,
-        (display_name, pto_type_id),
+        (pto_type_id,),
     )
     conn.commit()
     conn.close()
@@ -582,7 +556,6 @@ def admin_pto_type_deactivate(pto_type_id):
 
 def render_admin_pto_types(errors=None):
     conn = get_db_connection()
-    ensure_default_pto_types(conn)
     pto_types = conn.execute(
         """
         SELECT id, code, display_name, is_active
