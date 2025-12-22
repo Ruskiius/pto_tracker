@@ -7,6 +7,15 @@ from flask import (
     session,
     abort,
 )
+from flask import (
+    Flask,
+    render_template,
+    redirect,
+    url_for,
+    request,
+    session,
+    abort,
+)
 from werkzeug.security import check_password_hash
 import sqlite3
 import re
@@ -546,72 +555,38 @@ def admin_pto_type_action(pto_type_id):
     action = request.form.get("action", "").strip().lower()
     display_name = request.form.get("display_name", "").strip()
 
-    errors = []
-    performed_action = False
+    if not display_name:
+        return render_admin_pto_types(["Display name is required."])
 
-    with get_db_connection() as conn:
-        pto_type = conn.execute(
-            "SELECT id, is_active FROM pto_types WHERE id = ?", (pto_type_id,)
-        ).fetchone()
-        if not pto_type:
-            errors.append("PTO type not found.")
+    conn = get_db_connection()
+    conn.execute(
+        """
+        UPDATE pto_types
+        SET is_active = 0
+        WHERE id = ?
+        """,
+        (pto_type_id,),
+    )
+    conn.commit()
+    conn.close()
 
-        if not action:
-            errors.append("Action is required.")
+    return redirect(url_for("admin_pto_types"))
 
-        if not errors:
-            if action == "edit":
-                if not display_name:
-                    errors.append("Display name is required.")
-                else:
-                    conn.execute(
-                        """
-                        UPDATE pto_types
-                        SET display_name = ?
-                        WHERE id = ?
-                        """,
-                        (display_name, pto_type_id),
-                    )
-                    performed_action = True
 
-            elif action == "deactivate":
-                conn.execute(
-                    """
-                    UPDATE pto_types
-                    SET is_active = 0
-                    WHERE id = ?
-                    """,
-                    (pto_type_id,),
-                )
-                performed_action = True
-
-            elif action == "reactivate":
-                conn.execute(
-                    """
-                    UPDATE pto_types
-                    SET is_active = 1
-                    WHERE id = ?
-                    """,
-                    (pto_type_id,),
-                )
-                performed_action = True
-
-            elif action == "delete":
-                conn.execute("DELETE FROM pto_entries WHERE pto_type_id = ?", (pto_type_id,))
-                conn.execute(
-                    "DELETE FROM pto_balances WHERE pto_type_id = ?", (pto_type_id,)
-                )
-                conn.execute("DELETE FROM pto_types WHERE id = ?", (pto_type_id,))
-                performed_action = True
-
-            else:
-                errors.append("Invalid action selected.")
-
-        if performed_action:
-            conn.commit()
-
-    if errors:
-        return render_admin_pto_types(errors)
+@app.route("/admin/pto-types/<int:pto_type_id>/deactivate", methods=["POST"])
+@admin_required
+def admin_pto_type_deactivate(pto_type_id):
+    conn = get_db_connection()
+    conn.execute(
+        """
+        UPDATE pto_types
+        SET is_active = 0
+        WHERE id = ?
+        """,
+        (pto_type_id,),
+    )
+    conn.commit()
+    conn.close()
 
     return redirect(url_for("admin_pto_types"))
 
