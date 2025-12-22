@@ -550,6 +550,16 @@ def admin_pto_type_action(pto_type_id):
     performed_action = False
 
     conn = get_db_connection()
+    conn.execute(
+        """
+        UPDATE pto_types
+        SET display_name = ?
+        WHERE id = ?
+        """,
+        (display_name, pto_type_id),
+    )
+    conn.commit()
+    conn.close()
 
     try:
         pto_type = conn.execute(
