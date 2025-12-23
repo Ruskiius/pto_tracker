@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PTO: Reset DB + Run (devcontainer)",
+      "type": "shell",
+      "command": "bash .devcontainer/postStart.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "PTO: Stop server (pkill flask)",
+      "type": "shell",
+      "command": "pkill -f \"flask run\" || true",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "PTO: Reset DB only",
+      "type": "shell",
+      "command": "python init_db.py",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "PTO: Tail .flask.log",
+      "type": "shell",
+      "command": "tail -n 200 -f .flask.log",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    }
+  ]
+}
