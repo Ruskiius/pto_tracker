@@ -1,25 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin: Edit PTO Balances</title>
+    <title>PTO Balances</title>
 </head>
 <body>
-    <h1>Admin: Edit PTO Balances</h1>
+    <h1>PTO Balances</h1>
 
     <nav>
         <ul>
             <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
             <li><a href="{{ url_for('employees_list') }}">Employees</a></li>
             <li><a href="{{ url_for('calendar_view') }}">Calendar</a></li>
-            <li><a href="{{ url_for('admin_balances_select_employee') }}">Admin: PTO Balances</a></li>
+            <li><a href="{{ url_for('admin_balances_select_employee') }}">PTO Balances</a></li>
+            {% if session.get('role') == 'admin' %}
             <li><a href="{{ url_for('admin_pto_types') }}">Admin: PTO Types</a></li>
+            {% endif %}
         </ul>
     </nav>
 
     {% if not employees %}
         <p>No active employees found.</p>
     {% else %}
-        <p>Select an employee to edit their PTO balances:</p>
+        <p>Select an employee to view their PTO balances:</p>
         <ul>
         {% for emp in employees %}
             <li>

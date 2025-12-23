@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View PTO Balances</title>
+</head>
+<body>
+    <h1>PTO Balances for {{ employee['first_name'] }} {{ employee['last_name'] }}</h1>
+
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('employees_list') }}">Employees</a></li>
+            <li><a href="{{ url_for('calendar_view') }}">Calendar</a></li>
+            <li><a href="{{ url_for('admin_balances_select_employee') }}">PTO Balances</a></li>
+            {% if session.get('role') == 'admin' %}
+            <li><a href="{{ url_for('admin_pto_types') }}">Admin: PTO Types</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    {% if not balance_rows %}
+        <p>No active PTO types available.</p>
+    {% else %}
+    <table border="1" cellpadding="6">
+        <tr>
+            <th>PTO Type</th>
+            <th>Hours Allotted</th>
+            <th>Hours Used</th>
+            <th>Remaining</th>
+        </tr>
+        {% for row in balance_rows %}
+        <tr>
+            <td>{{ row.display_name }}</td>
+            <td>
+                {% if row.hours_allotted is none %}
+                    N/A
+                {% else %}
+                    {{ '%.2f'|format(row.hours_allotted) }}
+                {% endif %}
+            </td>
+            <td>{{ '%.2f'|format(row.hours_used) }}</td>
+            <td>
+                {% if row.remaining is none %}
+                    N/A
+                {% else %}
+                    {{ '%.2f'|format(row.remaining) }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+</body>
+</html>
