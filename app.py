@@ -687,29 +687,24 @@ def admin_pto_type_edit(pto_type_id):
 
     if not errors:
         conn = get_db_connection()
-        cur = conn.execute("SELECT id FROM pto_types WHERE id = ?", (pto_type_id,))
-        if cur.fetchone() is None:
+        cur = conn.execute("SELECT id, default_hours FROM pto_types WHERE id = ?", (pto_type_id,))
+        existing = cur.fetchone()
+        if existing is None:
             conn.close()
             abort(404)
         
-        if default_hours is not None:
-            conn.execute(
-                """
-                UPDATE pto_types
-                SET display_name = ?, default_hours = ?
-                WHERE id = ?
-                """,
-                (display_name, default_hours, pto_type_id),
-            )
-        else:
-            conn.execute(
-                """
-                UPDATE pto_types
-                SET display_name = ?
-                WHERE id = ?
-                """,
-                (display_name, pto_type_id),
-            )
+        # Use existing default_hours if not provided in the form
+        if default_hours is None:
+            default_hours = existing["default_hours"]
+        
+        conn.execute(
+            """
+            UPDATE pto_types
+            SET display_name = ?, default_hours = ?
+            WHERE id = ?
+            """,
+            (display_name, default_hours, pto_type_id),
+        )
         conn.commit()
         conn.close()
         flash("PTO type updated.")
