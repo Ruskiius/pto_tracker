@@ -25,12 +25,12 @@ def init_db():
     # Seed PTO types
     print("Inserting PTO types...")
     pto_types = [
-        ("PERSONAL", "Personal Time", 1),
-        ("SICK", "Sick Time", 1),
-        ("VACATION", "Vacation Time", 1),
+        ("PERSONAL", "Personal Time", 1, 40),
+        ("SICK", "Sick Time", 1, 40),
+        ("VACATION", "Vacation Time", 1, 40),
     ]
     conn.executemany(
-        "INSERT INTO pto_types (code, display_name, is_active) VALUES (?, ?, ?)",
+        "INSERT INTO pto_types (code, display_name, is_active, default_hours) VALUES (?, ?, ?, ?)",
         pto_types,
     )
 
