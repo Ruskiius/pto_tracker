@@ -76,12 +76,12 @@ def ensure_default_pto_types(conn):
 
     if existing_count == 0:
         default_types = [
-            ("PERSONAL", "Personal Time", 1),
-            ("SICK", "Sick Time", 1),
-            ("VACATION", "Vacation Time", 1),
+            ("PERSONAL", "Personal Time", 1, 40),
+            ("SICK", "Sick Time", 1, 40),
+            ("VACATION", "Vacation Time", 1, 40),
         ]
         conn.executemany(
-            "INSERT OR IGNORE INTO pto_types (code, display_name, is_active) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO pto_types (code, display_name, is_active, default_hours) VALUES (?, ?, ?, ?)",
             default_types,
         )
         conn.commit()
@@ -199,17 +199,17 @@ def employee_new():
 
         # Fetch active PTO types
         pto_types = conn.execute(
-            "SELECT id FROM pto_types WHERE is_active = 1"
+            "SELECT id, default_hours FROM pto_types WHERE is_active = 1"
         ).fetchall()
 
-        # Create PTO balances with default 40 hours allotted for each type
+        # Create PTO balances using default_hours from each PTO type
         for pto_type in pto_types:
             conn.execute(
                 """
                 INSERT INTO pto_balances (employee_id, pto_type_id, hours_allotted, hours_used)
                 VALUES (?, ?, ?, 0)
                 """,
-                (employee_id, pto_type["id"], 40.0),
+                (employee_id, pto_type["id"], pto_type["default_hours"]),
             )
 
         conn.commit()
@@ -603,6 +603,7 @@ def admin_pto_type_new():
 
     code_raw = request.form.get("code", "")
     display_name = request.form.get("display_name", "").strip()
+    default_hours_str = request.form.get("default_hours", "").strip()
 
     normalized_code = re.sub(r"[^A-Za-z0-9]+", "_", code_raw.strip().upper()).strip("_")
 
@@ -610,16 +611,29 @@ def admin_pto_type_new():
         errors.append("Code is required and must contain letters or numbers.")
     if not display_name:
         errors.append("Display name is required.")
+    
+    # Validate default_hours
+    if not default_hours_str:
+        errors.append("Default hours is required.")
+        default_hours = None
+    else:
+        try:
+            default_hours = float(default_hours_str)
+            if default_hours < 0:
+                errors.append("Default hours must be greater than or equal to 0.")
+        except ValueError:
+            errors.append("Default hours must be a valid number.")
+            default_hours = None
 
     if not errors:
         conn = get_db_connection()
         try:
             cur = conn.execute(
                 """
-                INSERT INTO pto_types (code, display_name, is_active)
-                VALUES (?, ?, 1)
+                INSERT INTO pto_types (code, display_name, is_active, default_hours)
+                VALUES (?, ?, 1, ?)
                 """,
-                (normalized_code, display_name),
+                (normalized_code, display_name, default_hours),
             )
             pto_type_id = cur.lastrowid
 
@@ -628,7 +642,7 @@ def admin_pto_type_new():
                 "SELECT id FROM employees WHERE status = 'active'"
             ).fetchall()
             balance_rows = [
-                (emp["id"], pto_type_id, 40.0, 0.0) for emp in employees
+                (emp["id"], pto_type_id, default_hours, 0.0) for emp in employees
             ]
             if balance_rows:
                 conn.executemany(
@@ -655,24 +669,41 @@ def admin_pto_type_new():
 @admin_required
 def admin_pto_type_edit(pto_type_id):
     display_name = request.form.get("display_name", "").strip()
+    default_hours_str = request.form.get("default_hours", "").strip()
     errors = []
 
     if not display_name:
         errors.append("Display name is required.")
+    
+    # Validate default_hours if provided
+    default_hours = None
+    if default_hours_str:
+        try:
+            default_hours = float(default_hours_str)
+            if default_hours < 0:
+                errors.append("Default hours must be greater than or equal to 0.")
+        except ValueError:
+            errors.append("Default hours must be a valid number.")
 
     if not errors:
         conn = get_db_connection()
-        cur = conn.execute("SELECT id FROM pto_types WHERE id = ?", (pto_type_id,))
-        if cur.fetchone() is None:
+        cur = conn.execute("SELECT id, default_hours FROM pto_types WHERE id = ?", (pto_type_id,))
+        existing = cur.fetchone()
+        if existing is None:
             conn.close()
             abort(404)
+        
+        # Use existing default_hours if not provided in the form
+        if default_hours is None:
+            default_hours = existing["default_hours"]
+        
         conn.execute(
             """
             UPDATE pto_types
-            SET display_name = ?
+            SET display_name = ?, default_hours = ?
             WHERE id = ?
             """,
-            (display_name, pto_type_id),
+            (display_name, default_hours, pto_type_id),
         )
         conn.commit()
         conn.close()
@@ -754,7 +785,7 @@ def render_admin_pto_types(errors=None):
     ensure_default_pto_types(conn)
     pto_types = conn.execute(
         """
-        SELECT id, code, display_name, is_active
+        SELECT id, code, display_name, is_active, default_hours
         FROM pto_types
         ORDER BY is_active DESC, display_name
         """,

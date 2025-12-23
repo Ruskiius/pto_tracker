@@ -32,7 +32,8 @@ CREATE TABLE pto_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     code TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL,
-    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1))
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),
+    default_hours REAL NOT NULL DEFAULT 40
 );
 
 -- PTO balances per employee per PTO type

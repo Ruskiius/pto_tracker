@@ -41,6 +41,7 @@
     <form method="POST" action="{{ url_for('admin_pto_type_new') }}">
         <input type="text" name="code" placeholder="CODE (e.g. FLOAT)" required>
         <input type="text" name="display_name" placeholder="Display Name" required>
+        <input type="number" name="default_hours" placeholder="Default Hours" step="0.01" min="0" required>
         <button type="submit">Add</button>
     </form>
 
@@ -54,6 +55,7 @@
         <tr>
             <th>Code</th>
             <th>Name</th>
+            <th>Default Hours</th>
             <th>Status</th>
             <th>Actions</th>
         </tr>
@@ -64,6 +66,14 @@
             <td>
                 <form method="POST" action="{{ url_for('admin_pto_type_edit', pto_type_id=t['id']) }}" style="display: inline;">
                     <input type="text" name="display_name" value="{{ t['display_name'] }}" required>
+                    <input type="hidden" name="default_hours" value="{{ t['default_hours'] }}">
+                    <button type="submit">Save</button>
+                </form>
+            </td>
+            <td>
+                <form method="POST" action="{{ url_for('admin_pto_type_edit', pto_type_id=t['id']) }}" style="display: inline;">
+                    <input type="hidden" name="display_name" value="{{ t['display_name'] }}">
+                    <input type="number" name="default_hours" value="{{ t['default_hours'] }}" step="0.01" min="0" required>
                     <button type="submit">Save</button>
                 </form>
             </td>
