@@ -582,11 +582,15 @@ def admin_balances_edit(employee_id):
     ).fetchall()
 
     balance_rows = build_balance_rows(pto_rows)
+    has_negative = any(
+        r["remaining"] is not None and r["remaining"] < 0 for r in balance_rows
+    )
     conn.close()
     return render_template(
         "admin_balances_view.html",
         employee=employee,
         balance_rows=balance_rows,
+        has_negative=has_negative,
     )
 
 
@@ -670,6 +674,7 @@ def admin_pto_type_new():
 def admin_pto_type_edit(pto_type_id):
     display_name = request.form.get("display_name", "").strip()
     default_hours_str = request.form.get("default_hours", "").strip()
+    update_all_balances = request.form.get("update_all_balances") == "1"
     errors = []
 
     if not display_name:
@@ -696,7 +701,7 @@ def admin_pto_type_edit(pto_type_id):
         # Use existing default_hours if not provided in the form
         if default_hours is None:
             default_hours = existing["default_hours"]
-        
+
         conn.execute(
             """
             UPDATE pto_types
@@ -705,9 +710,23 @@ def admin_pto_type_edit(pto_type_id):
             """,
             (display_name, default_hours, pto_type_id),
         )
+
+        # Only update all employee balances if explicitly requested
+        if update_all_balances:
+            conn.execute(
+                """
+                UPDATE pto_balances
+                SET hours_allotted = ?
+                WHERE pto_type_id = ?
+                """,
+                (default_hours, pto_type_id),
+            )
+            flash("PTO type updated and all employee balances updated.")
+        else:
+            flash("PTO type updated.")
+        
         conn.commit()
         conn.close()
-        flash("PTO type updated.")
         return redirect(url_for("admin_pto_types"))
 
     return render_admin_pto_types(errors)

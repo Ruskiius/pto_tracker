@@ -18,6 +18,10 @@
         </ul>
     </nav>
 
+    {% if has_negative %}
+        <p style="color:red; font-weight:bold;">Warning: This employee has a negative remaining PTO balance. This can happen if defaults were lowered below already-used hours.</p>
+    {% endif %}
+
     {% if not balance_rows %}
         <p>No active PTO types available.</p>
     {% else %}
@@ -42,6 +46,8 @@
             <td>
                 {% if row.remaining is none %}
                     N/A
+                {% elif row.remaining < 0 %}
+                    <span style="color:red;">{{ '%.2f'|format(row.remaining) }}</span>
                 {% else %}
                     {{ '%.2f'|format(row.remaining) }}
                 {% endif %}
