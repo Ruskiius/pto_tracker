@@ -22,12 +22,20 @@
     <a href="{{ url_for('dashboard') }}">Dashboard</a>
 </p>
 
-{% with messages = get_flashed_messages() %}
+{% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div style="color: green;">
+    <div>
         <ul>
-            {% for msg in messages %}
-                <li>{{ msg }}</li>
+            {% for category, msg in messages %}
+                <li
+                    {% if category == 'error' %}
+                        style="color: red;"
+                    {% elif category == 'success' %}
+                        style="color: green;"
+                    {% else %}
+                        style="color: black;"
+                    {% endif %}
+                >{{ msg }}</li>
             {% endfor %}
         </ul>
     </div>
