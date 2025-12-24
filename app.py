@@ -710,7 +710,7 @@ def admin_pto_type_edit(pto_type_id):
             """,
             (display_name, default_hours, pto_type_id),
         )
-        
+
         # Only update all employee balances if explicitly requested
         if update_all_balances:
             conn.execute(
