@@ -22,6 +22,36 @@
     <a href="{{ url_for('dashboard') }}">Dashboard</a>
 </p>
 
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div>
+        <ul>
+            {% for category, msg in messages %}
+                <li
+                    {% if category == 'error' %}
+                        style="color: red;"
+                    {% elif category == 'success' %}
+                        style="color: green;"
+                    {% else %}
+                        style="color: black;"
+                    {% endif %}
+                >{{ msg }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+{% endwith %}
+
+{% if errors %}
+    <div style="color: red;">
+        <ul>
+            {% for error in errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
 <hr>
 
 <h2>PTO Balances</h2>
@@ -49,6 +79,56 @@
 </table>
 {% else %}
 <p>No PTO balances found for this employee.</p>
+{% endif %}
+
+{% if is_admin %}
+<hr>
+
+<h3 id="balances-edit">Edit PTO Balances (Admin)</h3>
+
+<form method="POST" action="{{ url_for('employee_detail', employee_id=employee['id']) }}#balances-edit">
+    {% if not balance_rows %}
+        <p>No active PTO types available.</p>
+    {% else %}
+    <table border="1" cellpadding="6" cellspacing="0">
+        <thead>
+            <tr>
+                <th>PTO Type</th>
+                <th>Hours Allotted</th>
+                <th>Hours Used</th>
+                <th>Remaining</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in balance_rows %}
+            <tr>
+                <td>{{ row.display_name }}</td>
+                <td>
+                    <input
+                        type="number"
+                        name="{{ row.pto_type_id }}"
+                        step="0.25"
+                        min="{{ '%.2f'|format(row.hours_used) }}"
+                        value="{{ row.input_value }}"
+                        required
+                    >
+                </td>
+                <td>{{ "%.2f"|format(row.hours_used) }}</td>
+                <td>
+                    {% if row.remaining is none %}
+                        N/A
+                    {% else %}
+                        {{ "%.2f"|format(row.remaining) }}
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p style="margin-top: 10px;">Hours allotted cannot be less than hours already used.</p>
+    <button type="submit">Save Balances</button>
+    {% endif %}
+</form>
 {% endif %}
 
 <hr>

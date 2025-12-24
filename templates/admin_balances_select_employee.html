@@ -25,7 +25,7 @@
         <ul>
         {% for emp in employees %}
             <li>
-                <a href="{{ url_for('employee_detail', employee_id=emp['id']) }}">
+                <a href="{{ url_for('employee_detail', employee_id=emp['id'], _anchor='balances-edit') }}">
                     {{ emp['last_name'] }}, {{ emp['first_name'] }}
                 </a>
             </li>
