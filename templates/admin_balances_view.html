@@ -19,7 +19,7 @@
     </nav>
 
     {% if has_negative %}
-        <p style="color:red; font-weight:bold;">Warning: One or more employees have negative remaining PTO. This can happen if defaults were lowered below already-used hours.</p>
+        <p style="color:red; font-weight:bold;">Warning: This employee has a negative remaining PTO balance. This can happen if defaults were lowered below already-used hours.</p>
     {% endif %}
 
     {% if not balance_rows %}
