@@ -74,6 +74,15 @@
                 <form method="POST" action="{{ url_for('admin_pto_type_edit', pto_type_id=t['id']) }}" style="display: inline;">
                     <input type="hidden" name="display_name" value="{{ t['display_name'] }}">
                     <input type="number" name="default_hours" value="{{ t['default_hours'] }}" step="0.01" min="0" required>
+                    <div style="margin-top: 5px;">
+                        <label style="font-size: 0.9em;">
+                            <input type="checkbox" name="update_all_balances" value="1">
+                            Update all employee balances to this value
+                        </label>
+                        <div style="color: #d9534f; font-size: 0.85em; margin-top: 2px;">
+                            ⚠️ Warning: This will overwrite custom PTO allocations
+                        </div>
+                    </div>
                     <button type="submit">Save</button>
                 </form>
             </td>
