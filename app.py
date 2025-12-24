@@ -276,6 +276,7 @@ def employee_detail(employee_id):
                 raw_value = form_data.get(field_name, "").strip()
                 hours_used = row["hours_used"] if row["hours_used"] is not None else 0.0
                 row_has_error = False
+                new_hours_allotted = None
 
                 if raw_value == "":
                     errors.append(f"Hours allotted for {row['display_name']} are required.")
@@ -297,6 +298,7 @@ def employee_detail(employee_id):
                 if row_has_error:
                     continue
 
+                # At this point, new_hours_allotted is guaranteed to be a valid float
                 if new_hours_allotted < hours_used:
                     errors.append(
                         f"Hours allotted for {row['display_name']} cannot be less than hours used ({hours_used:.2f})."
