@@ -552,46 +552,7 @@ def build_balance_rows(pto_rows, form_data=None):
 @app.route("/admin/balances/<int:employee_id>", methods=["GET"])
 @admin_or_manager_required
 def admin_balances_edit(employee_id):
-    conn = get_db_connection()
-    employee = conn.execute(
-        """
-        SELECT id, first_name, last_name
-        FROM employees
-        WHERE id = ?
-        """,
-        (employee_id,),
-    ).fetchone()
-
-    if employee is None:
-        conn.close()
-        abort(404)
-
-    pto_rows = conn.execute(
-        """
-        SELECT
-            pt.id AS pto_type_id,
-            pt.display_name,
-            b.hours_allotted,
-            b.hours_used
-        FROM pto_types pt
-        LEFT JOIN pto_balances b ON b.pto_type_id = pt.id AND b.employee_id = ?
-        WHERE pt.is_active = 1
-        ORDER BY pt.display_name
-        """,
-        (employee_id,),
-    ).fetchall()
-
-    balance_rows = build_balance_rows(pto_rows)
-    has_negative = any(
-        r["remaining"] is not None and r["remaining"] < 0 for r in balance_rows
-    )
-    conn.close()
-    return render_template(
-        "admin_balances_view.html",
-        employee=employee,
-        balance_rows=balance_rows,
-        has_negative=has_negative,
-    )
+    return redirect(url_for("employee_detail", employee_id=employee_id))
 
 
 @app.route("/admin/pto-types", methods=["GET"])
