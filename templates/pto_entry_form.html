@@ -2,6 +2,65 @@
 <html>
 <head>
     <title>Add PTO Entry</title>
+    <script>
+        // PTO calculation constants (must match server-side)
+        const HOURS_PER_DAY = 8;
+        const SKIP_WEEKENDS = true;
+
+        function calculatePTOHours(startDate, endDate, hoursPerDay = HOURS_PER_DAY, skipWeekends = SKIP_WEEKENDS) {
+            if (!startDate || !endDate) {
+                return null;
+            }
+
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            // Validate date range
+            if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
+                return null;
+            }
+
+            let totalDays = 0;
+            let current = new Date(start);
+
+            while (current <= end) {
+                const dayOfWeek = current.getDay();
+                // Sunday = 0, Saturday = 6
+                if (!skipWeekends || (dayOfWeek !== 0 && dayOfWeek !== 6)) {
+                    totalDays += 1;
+                }
+                current.setDate(current.getDate() + 1);
+            }
+
+            return totalDays * hoursPerDay;
+        }
+
+        function updateHoursField() {
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+            const hoursInput = document.getElementById('hours');
+
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+
+            if (startDate && endDate) {
+                const calculatedHours = calculatePTOHours(startDate, endDate);
+                if (calculatedHours !== null && calculatedHours >= 0) {
+                    hoursInput.value = calculatedHours;
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+
+            if (startDateInput && endDateInput) {
+                startDateInput.addEventListener('change', updateHoursField);
+                endDateInput.addEventListener('change', updateHoursField);
+            }
+        });
+    </script>
 </head>
 <body>
 
@@ -34,15 +93,15 @@
     <br><br>
 
     <label>Start Date:</label><br>
-    <input type="date" name="start_date" value="{{ form_data.get('start_date','') }}">
+    <input type="date" id="start_date" name="start_date" value="{{ form_data.get('start_date','') }}">
     <br><br>
 
     <label>End Date:</label><br>
-    <input type="date" name="end_date" value="{{ form_data.get('end_date','') }}">
+    <input type="date" id="end_date" name="end_date" value="{{ form_data.get('end_date','') }}">
     <br><br>
 
-    <label>Hours (required for now):</label><br>
-    <input type="text" name="hours" placeholder="8" value="{{ form_data.get('hours','') }}">
+    <label>Hours:</label><br>
+    <input type="number" id="hours" name="hours" step="0.25" min="0" placeholder="8" value="{{ form_data.get('hours','') }}">
     <br><br>
 
     <label>Notes (optional):</label><br>
