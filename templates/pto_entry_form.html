@@ -25,7 +25,8 @@
 
             while (current <= end) {
                 const dayOfWeek = current.getDay();
-                // Sunday = 0, Saturday = 6
+                // JavaScript getDay(): Sunday=0, Monday=1, ..., Saturday=6
+                // Skip weekends: Saturday=6, Sunday=0
                 if (!skipWeekends || (dayOfWeek !== 0 && dayOfWeek !== 6)) {
                     totalDays += 1;
                 }

@@ -72,7 +72,7 @@ def calculate_pto_hours(start_date, end_date, hours_per_day=HOURS_PER_DAY, skip_
     current = start_date
     
     while current <= end_date:
-        # If skip_weekends is True, exclude Sat (5) and Sun (6)
+        # If skip_weekends is True, exclude weekends (Monday=0, ..., Saturday=5, Sunday=6)
         if not skip_weekends or current.weekday() < 5:
             total_days += 1
         current += timedelta(days=1)
@@ -508,9 +508,7 @@ def pto_entry_new(employee_id):
             # User provided hours - validate it
             try:
                 hours = float(hours_str)
-                if hours < 0:
-                    errors.append("Hours must be greater than or equal to 0.")
-                elif hours == 0:
+                if hours <= 0:
                     errors.append("Hours must be greater than 0.")
             except ValueError:
                 errors.append("Hours must be a valid number (e.g. 8 or 4.5).")
