@@ -7,13 +7,27 @@
         const HOURS_PER_DAY = 8;
         const SKIP_WEEKENDS = true;
 
+        function parseLocalDate(dateString) {
+            if (!dateString) {
+                return null;
+            }
+
+            const parts = dateString.split('-');
+            if (parts.length !== 3) {
+                return null;
+            }
+
+            const [year, month, day] = parts.map(Number);
+            return new Date(year, month - 1, day);
+        }
+
         function calculatePTOHours(startDate, endDate, hoursPerDay = HOURS_PER_DAY, skipWeekends = SKIP_WEEKENDS) {
             if (!startDate || !endDate) {
                 return null;
             }
 
-            const start = new Date(startDate);
-            const end = new Date(endDate);
+            const start = parseLocalDate(startDate);
+            const end = parseLocalDate(endDate);
 
             // Validate date range
             if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
