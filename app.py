@@ -11,7 +11,7 @@ from flask import (
 from werkzeug.security import check_password_hash
 import sqlite3
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import calendar as cal
 
 
@@ -25,12 +25,59 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "pto_tracker.db"
 
+# PTO calculation constants
+HOURS_PER_DAY = 8
+SKIP_WEEKENDS = True
+
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.row_factory = sqlite3.Row  # access columns by name
     return conn
+
+
+def calculate_pto_hours(start_date, end_date, hours_per_day=HOURS_PER_DAY, skip_weekends=SKIP_WEEKENDS):
+    """
+    Calculate PTO hours between start_date and end_date (inclusive).
+    
+    Args:
+        start_date: date object or string in YYYY-MM-DD format
+        end_date: date object or string in YYYY-MM-DD format
+        hours_per_day: hours per work day (default: HOURS_PER_DAY constant)
+        skip_weekends: if True, exclude Saturday/Sunday (default: SKIP_WEEKENDS constant)
+    
+    Returns:
+        float: Total hours, or None if dates are invalid
+    """
+    # Parse dates if strings
+    if isinstance(start_date, str):
+        try:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return None
+    
+    if isinstance(end_date, str):
+        try:
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return None
+    
+    # Validate date range
+    if start_date is None or end_date is None or end_date < start_date:
+        return None
+    
+    # Count business days
+    total_days = 0
+    current = start_date
+    
+    while current <= end_date:
+        # If skip_weekends is True, exclude weekends (Monday=0, ..., Saturday=5, Sunday=6)
+        if not skip_weekends or current.weekday() < 5:
+            total_days += 1
+        current += timedelta(days=1)
+    
+    return total_days * hours_per_day
 
 
 app = Flask(__name__)
@@ -445,14 +492,38 @@ def pto_entry_new(employee_id):
         if not end_date:
             errors.append("End date is required.")
 
-        # Validate hours
-        try:
-            hours = float(hours_str)
-            if hours <= 0:
-                errors.append("Hours must be greater than 0.")
-        except ValueError:
+        # Validate date range if both dates are present
+        if start_date and end_date:
+            try:
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+                if end_dt < start_dt:
+                    errors.append("End date cannot be before start date.")
+            except ValueError:
+                errors.append("Invalid date format.")
+
+        # Auto-calculate hours if not provided
+        hours = None
+        if hours_str:
+            # User provided hours - validate it
+            try:
+                hours = float(hours_str)
+                if hours <= 0:
+                    errors.append("Hours must be greater than 0.")
+            except ValueError:
+                errors.append("Hours must be a valid number (e.g. 8 or 4.5).")
+        elif start_date and end_date and not errors:
+            # No hours provided - calculate from dates
+            calculated_hours = calculate_pto_hours(start_date, end_date)
+            if calculated_hours is not None and calculated_hours > 0:
+                hours = calculated_hours
+                hours_str = str(hours)  # Update for form re-rendering
+            else:
+                errors.append("Could not calculate hours from the provided dates.")
+
+        # Ensure hours is set
+        if hours is None:
             errors.append("Hours must be a valid number (e.g. 8 or 4.5).")
-            hours = None
 
         # Optional: ensure balance row exists and check remaining hours
         if pto_type_id_int and hours is not None:
