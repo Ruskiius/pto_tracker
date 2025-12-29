@@ -18,7 +18,23 @@
             }
 
             const [year, month, day] = parts.map(Number);
-            return new Date(year, month - 1, day);
+
+            if ([year, month, day].some(Number.isNaN)) {
+                return null;
+            }
+
+            const date = new Date(year, month - 1, day);
+
+            if (
+                isNaN(date.getTime()) ||
+                date.getFullYear() !== year ||
+                date.getMonth() !== month - 1 ||
+                date.getDate() !== day
+            ) {
+                return null;
+            }
+
+            return date;
         }
 
         function calculatePTOHours(startDate, endDate, hoursPerDay = HOURS_PER_DAY, skipWeekends = SKIP_WEEKENDS) {
@@ -28,6 +44,10 @@
 
             const start = parseLocalDate(startDate);
             const end = parseLocalDate(endDate);
+
+            if (!start || !end) {
+                return null;
+            }
 
             // Validate date range
             if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
