@@ -187,25 +187,47 @@ def dashboard():
 @app.route("/employees")
 @login_required
 def employees_list():
+    # Check if we should show deleted employees (admin only)
+    show_deleted = request.args.get("show_deleted", "false").lower() == "true"
+    is_admin = session.get("role") == "admin"
+    
     conn = get_db_connection()
-    employees = conn.execute(
-        """
-        SELECT id, first_name, last_name, employment_type, phone, email, status
-        FROM employees
-        WHERE status = 'active'
-        ORDER BY last_name, first_name
-        """
-    ).fetchall()
+    
+    if show_deleted and is_admin:
+        # Show only inactive employees for admins
+        employees = conn.execute(
+            """
+            SELECT id, first_name, last_name, employment_type, phone, email, status
+            FROM employees
+            WHERE status = 'inactive'
+            ORDER BY last_name, first_name
+            """
+        ).fetchall()
+    else:
+        # Show only active employees
+        employees = conn.execute(
+            """
+            SELECT id, first_name, last_name, employment_type, phone, email, status
+            FROM employees
+            WHERE status = 'active'
+            ORDER BY last_name, first_name
+            """
+        ).fetchall()
     conn.close()
 
-    return render_template("employees_list.html", employees=employees)
+    return render_template(
+        "employees_list.html", 
+        employees=employees, 
+        show_deleted=show_deleted,
+        is_admin=is_admin
+    )
 
 
 
 
 
 @app.route("/employees/new", methods=["GET", "POST"])
-@login_required
+@admin_or_manager_required
 def employee_new():
     if request.method == "POST":
         first_name = request.form.get("first_name", "").strip()
@@ -506,6 +528,44 @@ def employee_restore(employee_id):
         
         flash(f"Employee {employee['first_name']} {employee['last_name']} has been restored.", "success")
         return redirect(url_for("employee_detail", employee_id=employee_id))
+    finally:
+        conn.close()
+
+
+@app.route("/employees/<int:employee_id>/delete_permanently", methods=["POST"])
+@admin_required
+def employee_delete_permanently(employee_id):
+    conn = get_db_connection()
+    
+    try:
+        # Get employee info
+        employee = conn.execute(
+            "SELECT id, first_name, last_name, status FROM employees WHERE id = ?",
+            (employee_id,),
+        ).fetchone()
+        
+        if employee is None:
+            abort(404)
+        
+        # Check if employee is inactive (can only permanently delete inactive employees)
+        if employee["status"] == "active":
+            flash("Cannot permanently delete an active employee. Remove them first.", "error")
+            return redirect(url_for("employee_detail", employee_id=employee_id))
+        
+        # Delete related records (in correct order due to foreign keys)
+        # Delete PTO entries first
+        conn.execute("DELETE FROM pto_entries WHERE employee_id = ?", (employee_id,))
+        
+        # Delete PTO balances
+        conn.execute("DELETE FROM pto_balances WHERE employee_id = ?", (employee_id,))
+        
+        # Finally delete the employee
+        conn.execute("DELETE FROM employees WHERE id = ?", (employee_id,))
+        
+        conn.commit()
+        
+        flash(f"Employee {employee['first_name']} {employee['last_name']} has been permanently deleted.", "success")
+        return redirect(url_for("employees_list", show_deleted="true"))
     finally:
         conn.close()
 
