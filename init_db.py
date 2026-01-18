@@ -41,6 +41,8 @@ def init_db():
         ("pto_types:manage", "Manage PTO types (create, edit, delete)"),
         ("balances:edit", "Edit PTO balances for employees"),
         ("managers:manage", "Manage manager accounts"),
+        ("users:manage", "View/create/edit/delete users"),
+        ("users:assign_admin", "Assign the admin role to a user"),
     ]
     conn.executemany(
         "INSERT OR IGNORE INTO permissions (code, description) VALUES (?, ?)",
@@ -70,6 +72,8 @@ def init_db():
             (admin_role_id, perm_map["pto_types:manage"]),
             (admin_role_id, perm_map["balances:edit"]),
             (admin_role_id, perm_map["managers:manage"]),
+            (admin_role_id, perm_map["users:manage"]),
+            (admin_role_id, perm_map["users:assign_admin"]),
         ]
         conn.executemany(
             "INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",

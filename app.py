@@ -1328,6 +1328,210 @@ def role_edit(role_id):
     )
 
 
+# --- User Management Routes ---
+@app.route("/users")
+@permission_required("users:manage")
+def users_list():
+    conn = get_db_connection()
+    
+    # Get all managers (users)
+    users = conn.execute(
+        """
+        SELECT id, username, full_name, role
+        FROM managers
+        ORDER BY username
+        """
+    ).fetchall()
+    
+    conn.close()
+    return render_template("users_list.html", users=users)
+
+
+@app.route("/users/new", methods=["GET", "POST"])
+@permission_required("users:manage")
+def user_new():
+    from werkzeug.security import generate_password_hash
+    
+    conn = get_db_connection()
+    
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        full_name = request.form.get("full_name", "").strip()
+        role = request.form.get("role", "").strip()
+        
+        errors = []
+        if not username:
+            errors.append("Username is required.")
+        if not password:
+            errors.append("Password is required.")
+        if not full_name:
+            errors.append("Full name is required.")
+        if not role:
+            errors.append("Role is required.")
+        
+        # Check if assigning admin role
+        if role == "admin":
+            # Require users:assign_admin permission
+            permissions = session.get("permissions", [])
+            if "users:assign_admin" not in permissions:
+                flash("You do not have permission to assign the admin role.", "error")
+                conn.close()
+                return redirect(url_for("users_list"))
+        
+        if not errors:
+            try:
+                # Create the user
+                password_hash = generate_password_hash(password, method="pbkdf2:sha256")
+                conn.execute(
+                    """
+                    INSERT INTO managers (username, password_hash, full_name, role)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (username, password_hash, full_name, role)
+                )
+                conn.commit()
+                flash(f"User '{username}' created successfully.", "success")
+                conn.close()
+                return redirect(url_for("users_list"))
+            except sqlite3.IntegrityError:
+                errors.append("A user with this username already exists.")
+                conn.rollback()
+        
+        conn.close()
+        return render_template(
+            "user_form.html",
+            form_data={"username": username, "full_name": full_name, "role": role},
+            errors=errors
+        )
+    
+    # GET request
+    conn.close()
+    return render_template("user_form.html", form_data={}, errors=[])
+
+
+@app.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
+@permission_required("users:manage")
+def user_edit(user_id):
+    from werkzeug.security import generate_password_hash
+    
+    conn = get_db_connection()
+    
+    # Get user info
+    user = conn.execute(
+        "SELECT id, username, full_name, role FROM managers WHERE id = ?",
+        (user_id,)
+    ).fetchone()
+    
+    if user is None:
+        conn.close()
+        abort(404)
+    
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        full_name = request.form.get("full_name", "").strip()
+        role = request.form.get("role", "").strip()
+        
+        errors = []
+        if not username:
+            errors.append("Username is required.")
+        if not full_name:
+            errors.append("Full name is required.")
+        if not role:
+            errors.append("Role is required.")
+        
+        # Check if assigning admin role
+        if role == "admin":
+            # Require users:assign_admin permission
+            permissions = session.get("permissions", [])
+            if "users:assign_admin" not in permissions:
+                flash("You do not have permission to assign the admin role.", "error")
+                conn.close()
+                return redirect(url_for("users_list"))
+        
+        if not errors:
+            try:
+                # Update user
+                if password:
+                    # Update with new password
+                    password_hash = generate_password_hash(password, method="pbkdf2:sha256")
+                    conn.execute(
+                        """
+                        UPDATE managers
+                        SET username = ?, password_hash = ?, full_name = ?, role = ?
+                        WHERE id = ?
+                        """,
+                        (username, password_hash, full_name, role, user_id)
+                    )
+                else:
+                    # Update without changing password
+                    conn.execute(
+                        """
+                        UPDATE managers
+                        SET username = ?, full_name = ?, role = ?
+                        WHERE id = ?
+                        """,
+                        (username, full_name, role, user_id)
+                    )
+                
+                conn.commit()
+                flash(f"User '{username}' updated successfully.", "success")
+                conn.close()
+                return redirect(url_for("users_list"))
+            except sqlite3.IntegrityError:
+                errors.append("A user with this username already exists.")
+                conn.rollback()
+        
+        conn.close()
+        return render_template(
+            "user_form.html",
+            user=user,
+            form_data={"username": username, "full_name": full_name, "role": role},
+            errors=errors
+        )
+    
+    # GET request
+    conn.close()
+    return render_template(
+        "user_form.html",
+        user=user,
+        form_data={"username": user["username"], "full_name": user["full_name"], "role": user["role"]},
+        errors=[]
+    )
+
+
+@app.route("/users/<int:user_id>/delete", methods=["POST"])
+@permission_required("users:manage")
+def user_delete(user_id):
+    conn = get_db_connection()
+    
+    try:
+        # Get user info
+        user = conn.execute(
+            "SELECT id, username FROM managers WHERE id = ?",
+            (user_id,)
+        ).fetchone()
+        
+        if user is None:
+            abort(404)
+        
+        # Don't allow deleting yourself
+        if user_id == session.get("user_id"):
+            flash("You cannot delete your own account.", "error")
+            conn.close()
+            return redirect(url_for("users_list"))
+        
+        # Delete the user
+        conn.execute("DELETE FROM managers WHERE id = ?", (user_id,))
+        conn.commit()
+        
+        flash(f"User '{user['username']}' has been deleted.", "success")
+        return redirect(url_for("users_list"))
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     app.run(debug=True)
 

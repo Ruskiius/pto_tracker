@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% if user %}Edit{% else %}Create{% endif %} User</title>
+</head>
+<body>
+
+<h1>{% if user %}Edit{% else %}Create{% endif %} User</h1>
+
+<a href="{{ url_for('users_list') }}">Back to Users List</a>
+
+{% if errors %}
+<div style="color: red;">
+    <h3>Errors:</h3>
+    <ul>
+        {% for error in errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<form method="POST">
+    <label for="username">Username:</label><br>
+    <input type="text" id="username" name="username" value="{{ form_data.username or '' }}" required><br><br>
+    
+    <label for="password">Password:</label>
+    {% if user %}<em>(leave blank to keep current password)</em>{% endif %}<br>
+    <input type="password" id="password" name="password" {% if not user %}required{% endif %}><br><br>
+    
+    <label for="full_name">Full Name:</label><br>
+    <input type="text" id="full_name" name="full_name" value="{{ form_data.full_name or '' }}" required><br><br>
+    
+    <label for="role">Role:</label><br>
+    <select id="role" name="role" required>
+        <option value="">-- Select Role --</option>
+        <option value="admin" {% if form_data.role == 'admin' %}selected{% endif %}>Admin</option>
+        <option value="manager" {% if form_data.role == 'manager' %}selected{% endif %}>Manager</option>
+    </select><br><br>
+    
+    <button type="submit">{% if user %}Update{% else %}Create{% endif %} User</button>
+</form>
+
+</body>
+</html>
