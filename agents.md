@@ -53,3 +53,21 @@ Role is stored in session as `session["role"]`.
 - No existing features broken
 - UI accessible from dashboard
 - Works with SQLite locally
+
+
+## Roles & Permissions (Access Control)
+
+- Access control in this project is permission-based, not role-based.
+- A role is a named bundle of permissions.
+- "admin" and "manager" are system roles:
+  - Their behavior must remain consistent with current functionality.
+  - They must not be editable via the UI.
+- Route authorization should be enforced using permission checks
+  (e.g. `@permission_required("employees:remove_restore")`)
+  rather than direct role comparisons.
+- Existing decorators (`admin_required`, `admin_or_manager_required`)
+  should be preserved for backwards compatibility and may internally
+  map to permission checks.
+- New features should define explicit permissions instead of introducing
+  new hard-coded roles.
+- Changes must be incremental and must not break existing access behavior.
