@@ -22,6 +22,71 @@ def init_db():
 
     conn.executescript(schema_sql)
 
+    # Seed roles
+    print("Inserting roles...")
+    roles = [
+        ("admin", 1),
+        ("manager", 1),
+    ]
+    conn.executemany(
+        "INSERT OR IGNORE INTO roles (name, is_system) VALUES (?, ?)",
+        roles,
+    )
+
+    # Seed permissions
+    print("Inserting permissions...")
+    permissions = [
+        ("employees:remove_restore", "Soft-delete or restore employees"),
+        ("employees:delete_permanent", "Permanently delete employees"),
+        ("pto_types:manage", "Manage PTO types (create, edit, delete)"),
+        ("balances:edit", "Edit PTO balances for employees"),
+        ("managers:manage", "Manage manager accounts"),
+    ]
+    conn.executemany(
+        "INSERT OR IGNORE INTO permissions (code, description) VALUES (?, ?)",
+        permissions,
+    )
+
+    # Get role IDs
+    admin_role = conn.execute("SELECT id FROM roles WHERE name = 'admin'").fetchone()
+    manager_role = conn.execute("SELECT id FROM roles WHERE name = 'manager'").fetchone()
+
+    if admin_role and manager_role:
+        admin_role_id = admin_role[0]
+        manager_role_id = manager_role[0]
+
+        # Get permission IDs
+        perm_map = {}
+        for code, _ in permissions:
+            perm = conn.execute("SELECT id FROM permissions WHERE code = ?", (code,)).fetchone()
+            if perm:
+                perm_map[code] = perm[0]
+
+        # Assign all permissions to admin
+        print("Assigning permissions to admin role...")
+        admin_perms = [
+            (admin_role_id, perm_map["employees:remove_restore"]),
+            (admin_role_id, perm_map["employees:delete_permanent"]),
+            (admin_role_id, perm_map["pto_types:manage"]),
+            (admin_role_id, perm_map["balances:edit"]),
+            (admin_role_id, perm_map["managers:manage"]),
+        ]
+        conn.executemany(
+            "INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+            admin_perms,
+        )
+
+        # Assign limited permissions to manager (only what admin_or_manager_required currently allows)
+        print("Assigning permissions to manager role...")
+        manager_perms = [
+            (manager_role_id, perm_map["employees:remove_restore"]),
+            (manager_role_id, perm_map["balances:edit"]),
+        ]
+        conn.executemany(
+            "INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+            manager_perms,
+        )
+
     # Seed PTO types
     print("Inserting PTO types...")
     pto_types = [

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Roles Management</title>
+</head>
+<body>
+
+<h1>Roles Management</h1>
+
+<a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <p style="color: {% if category == 'error' %}red{% elif category == 'success' %}green{% else %}blue{% endif %};">
+        {{ message }}
+      </p>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<h2>Existing Roles</h2>
+<table border="1" cellpadding="5">
+    <thead>
+        <tr>
+            <th>Role Name</th>
+            <th>Type</th>
+            <th>Permissions Count</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for role in roles %}
+        <tr>
+            <td>{{ role.name }}</td>
+            <td>{{ 'System' if role.is_system else 'Custom' }}</td>
+            <td>{{ role.permission_count }}</td>
+            <td>
+                {% if not role.is_system %}
+                <a href="{{ url_for('role_edit', role_id=role.id) }}">Edit</a>
+                {% else %}
+                <em>System role</em>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Create New Role</h2>
+<a href="{{ url_for('role_new') }}">
+    <button type="button">Create New Role</button>
+</a>
+
+</body>
+</html>

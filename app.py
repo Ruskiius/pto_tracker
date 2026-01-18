@@ -93,12 +93,40 @@ def login_required(f):
         return f(*args, **kwargs)
     return wrapper
 
+def permission_required(permission_code):
+    """Decorator to require a specific permission."""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if "user_id" not in session:
+                return redirect(url_for("login"))
+            
+            permissions = session.get("permissions", [])
+            if permission_code not in permissions:
+                flash("You do not have permission to perform this action.", "error")
+                return redirect(url_for("dashboard"))
+            
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if "user_id" not in session:
             return redirect(url_for("login"))
-        if session.get("role") != "admin":
+        
+        # Check for required permissions instead of direct role check
+        permissions = session.get("permissions", [])
+        # Admin should have all these permissions
+        required_perms = [
+            "employees:delete_permanent",
+            "pto_types:manage",
+            "managers:manage",
+        ]
+        has_all = all(perm in permissions for perm in required_perms)
+        
+        if not has_all:
             flash("Admin access required.", "error")
             return redirect(url_for("dashboard"))
         return f(*args, **kwargs)
@@ -109,7 +137,17 @@ def admin_or_manager_required(f):
     def wrapper(*args, **kwargs):
         if "user_id" not in session:
             return redirect(url_for("login"))
-        if session.get("role") not in ("admin", "manager"):
+        
+        # Check for permissions that both admin and manager should have
+        permissions = session.get("permissions", [])
+        # Manager has at least one of these permissions
+        allowed_perms = [
+            "employees:remove_restore",
+            "balances:edit",
+        ]
+        has_any = any(perm in permissions for perm in allowed_perms)
+        
+        if not has_any:
             flash("Access denied.", "error")
             return redirect(url_for("dashboard"))
         return f(*args, **kwargs)
@@ -152,9 +190,9 @@ def login():
             (username,),
         )
         user = cur.fetchone()
-        conn.close()
 
         if user is None or not check_password_hash(user["password_hash"], password):
+            conn.close()
             return render_template("login.html", error="Invalid username or password")
 
         # Login success
@@ -163,6 +201,20 @@ def login():
         session["full_name"] = user["full_name"]
         session["role"] = user["role"]
 
+        # Load permissions for the manager's role
+        permissions = conn.execute(
+            """
+            SELECT p.code
+            FROM permissions p
+            JOIN role_permissions rp ON p.id = rp.permission_id
+            JOIN roles r ON r.id = rp.role_id
+            WHERE r.name = ?
+            """,
+            (user["role"],),
+        ).fetchall()
+        session["permissions"] = [p["code"] for p in permissions]
+
+        conn.close()
         return redirect(url_for("dashboard"))
 
     return render_template("login.html")
@@ -467,7 +519,7 @@ def employee_detail(employee_id):
 
 
 @app.route("/employees/<int:employee_id>/remove", methods=["POST"])
-@admin_or_manager_required
+@permission_required("employees:remove_restore")
 def employee_remove(employee_id):
     conn = get_db_connection()
     
@@ -500,7 +552,7 @@ def employee_remove(employee_id):
 
 
 @app.route("/employees/<int:employee_id>/restore", methods=["POST"])
-@admin_or_manager_required
+@permission_required("employees:remove_restore")
 def employee_restore(employee_id):
     conn = get_db_connection()
     
@@ -533,7 +585,7 @@ def employee_restore(employee_id):
 
 
 @app.route("/employees/<int:employee_id>/delete_permanently", methods=["POST"])
-@admin_required
+@permission_required("employees:delete_permanent")
 def employee_delete_permanently(employee_id):
     conn = get_db_connection()
     
@@ -862,13 +914,13 @@ def admin_balances_edit(employee_id):
 
 
 @app.route("/admin/pto-types", methods=["GET"])
-@admin_required
+@permission_required("pto_types:manage")
 def admin_pto_types():
     return render_admin_pto_types()
 
 
 @app.route("/admin/pto-types/new", methods=["POST"])
-@admin_required
+@permission_required("pto_types:manage")
 def admin_pto_type_new():
     errors = []
 
@@ -937,7 +989,7 @@ def admin_pto_type_new():
 
 
 @app.route("/admin/pto-types/<int:pto_type_id>/edit", methods=["POST"])
-@admin_required
+@permission_required("pto_types:manage")
 def admin_pto_type_edit(pto_type_id):
     display_name = request.form.get("display_name", "").strip()
     default_hours_str = request.form.get("default_hours", "").strip()
@@ -1000,7 +1052,7 @@ def admin_pto_type_edit(pto_type_id):
 
 
 @app.route("/admin/pto-types/<int:pto_type_id>/toggle", methods=["POST"])
-@admin_required
+@permission_required("pto_types:manage")
 def admin_pto_type_toggle(pto_type_id):
     conn = get_db_connection()
     pto_type = conn.execute(
@@ -1025,7 +1077,7 @@ def admin_pto_type_toggle(pto_type_id):
 
 
 @app.route("/admin/pto-types/<int:pto_type_id>/delete", methods=["POST"])
-@admin_required
+@permission_required("pto_types:manage")
 def admin_pto_type_delete(pto_type_id):
     errors = []
     conn = get_db_connection()
@@ -1083,6 +1135,198 @@ def render_admin_pto_types(errors=None):
         pto_types=pto_types,
         errors=errors or [],
     )
+
+
+# --- Role Management Routes ---
+@app.route("/roles")
+@permission_required("managers:manage")
+def roles_list():
+    conn = get_db_connection()
+    
+    # Get all roles with permission counts
+    roles = conn.execute(
+        """
+        SELECT 
+            r.id,
+            r.name,
+            r.is_system,
+            COUNT(rp.permission_id) as permission_count
+        FROM roles r
+        LEFT JOIN role_permissions rp ON r.id = rp.role_id
+        GROUP BY r.id, r.name, r.is_system
+        ORDER BY r.is_system DESC, r.name
+        """
+    ).fetchall()
+    
+    conn.close()
+    return render_template("roles_list.html", roles=roles)
+
+
+@app.route("/roles/new", methods=["GET", "POST"])
+@permission_required("managers:manage")
+def role_new():
+    conn = get_db_connection()
+    
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        selected_permissions = request.form.getlist("permissions")
+        
+        errors = []
+        if not name:
+            errors.append("Role name is required.")
+        
+        if not errors:
+            try:
+                # Create the role
+                cur = conn.execute(
+                    "INSERT INTO roles (name, is_system) VALUES (?, 0)",
+                    (name,)
+                )
+                role_id = cur.lastrowid
+                
+                # Assign selected permissions
+                if selected_permissions:
+                    permission_pairs = [(role_id, int(perm_id)) for perm_id in selected_permissions]
+                    conn.executemany(
+                        "INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+                        permission_pairs
+                    )
+                
+                conn.commit()
+                flash(f"Role '{name}' created successfully.", "success")
+                conn.close()
+                return redirect(url_for("roles_list"))
+            except sqlite3.IntegrityError:
+                errors.append("A role with this name already exists.")
+                conn.rollback()
+        
+        # Get all permissions for the form
+        permissions = conn.execute(
+            "SELECT id, code, description FROM permissions ORDER BY code"
+        ).fetchall()
+        
+        conn.close()
+        return render_template(
+            "role_form.html",
+            permissions=permissions,
+            selected_permissions=selected_permissions,
+            form_data={"name": name},
+            errors=errors
+        )
+    
+    # GET request
+    permissions = conn.execute(
+        "SELECT id, code, description FROM permissions ORDER BY code"
+    ).fetchall()
+    
+    conn.close()
+    return render_template(
+        "role_form.html",
+        permissions=permissions,
+        selected_permissions=[],
+        form_data={},
+        errors=[]
+    )
+
+
+@app.route("/roles/edit/<int:role_id>", methods=["GET", "POST"])
+@permission_required("managers:manage")
+def role_edit(role_id):
+    conn = get_db_connection()
+    
+    # Get role info
+    role = conn.execute(
+        "SELECT id, name, is_system FROM roles WHERE id = ?",
+        (role_id,)
+    ).fetchone()
+    
+    if role is None:
+        conn.close()
+        abort(404)
+    
+    # Cannot edit system roles
+    if role["is_system"]:
+        conn.close()
+        flash("Cannot edit system roles.", "error")
+        return redirect(url_for("roles_list"))
+    
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        selected_permissions = request.form.getlist("permissions")
+        
+        errors = []
+        if not name:
+            errors.append("Role name is required.")
+        
+        if not errors:
+            try:
+                # Update role name
+                conn.execute(
+                    "UPDATE roles SET name = ? WHERE id = ?",
+                    (name, role_id)
+                )
+                
+                # Update permissions: delete old ones and insert new ones
+                conn.execute(
+                    "DELETE FROM role_permissions WHERE role_id = ?",
+                    (role_id,)
+                )
+                
+                if selected_permissions:
+                    permission_pairs = [(role_id, int(perm_id)) for perm_id in selected_permissions]
+                    conn.executemany(
+                        "INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+                        permission_pairs
+                    )
+                
+                conn.commit()
+                flash(f"Role '{name}' updated successfully.", "success")
+                conn.close()
+                return redirect(url_for("roles_list"))
+            except sqlite3.IntegrityError:
+                errors.append("A role with this name already exists.")
+                conn.rollback()
+        
+        # Get all permissions for the form
+        permissions = conn.execute(
+            "SELECT id, code, description FROM permissions ORDER BY code"
+        ).fetchall()
+        
+        conn.close()
+        return render_template(
+            "role_form.html",
+            role=role,
+            permissions=permissions,
+            selected_permissions=selected_permissions,
+            form_data={"name": name},
+            errors=errors
+        )
+    
+    # GET request - load current permissions
+    permissions = conn.execute(
+        "SELECT id, code, description FROM permissions ORDER BY code"
+    ).fetchall()
+    
+    current_permissions = conn.execute(
+        """
+        SELECT permission_id
+        FROM role_permissions
+        WHERE role_id = ?
+        """,
+        (role_id,)
+    ).fetchall()
+    selected_permissions = [str(p["permission_id"]) for p in current_permissions]
+    
+    conn.close()
+    return render_template(
+        "role_form.html",
+        role=role,
+        permissions=permissions,
+        selected_permissions=selected_permissions,
+        form_data={"name": role["name"]},
+        errors=[]
+    )
+
 
 if __name__ == "__main__":
     app.run(debug=True)

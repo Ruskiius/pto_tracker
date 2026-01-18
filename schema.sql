@@ -5,7 +5,33 @@ DROP TABLE IF EXISTS pto_entries;
 DROP TABLE IF EXISTS pto_balances;
 DROP TABLE IF EXISTS employees;
 DROP TABLE IF EXISTS pto_types;
+DROP TABLE IF EXISTS role_permissions;
+DROP TABLE IF EXISTS permissions;
+DROP TABLE IF EXISTS roles;
 DROP TABLE IF EXISTS managers;
+
+-- Roles
+CREATE TABLE roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    is_system INTEGER NOT NULL DEFAULT 0 CHECK (is_system IN (0,1))
+);
+
+-- Permissions
+CREATE TABLE permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- Role-Permission mapping
+CREATE TABLE role_permissions (
+    role_id INTEGER NOT NULL,
+    permission_id INTEGER NOT NULL,
+    PRIMARY KEY (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES roles(id),
+    FOREIGN KEY (permission_id) REFERENCES permissions(id)
+);
 
 -- Managers (people who log into the app)
 CREATE TABLE managers (
