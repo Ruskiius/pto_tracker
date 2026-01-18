@@ -444,6 +444,71 @@ def employee_detail(employee_id):
     )
 
 
+@app.route("/employees/<int:employee_id>/remove", methods=["POST"])
+@admin_or_manager_required
+def employee_remove(employee_id):
+    conn = get_db_connection()
+    
+    # Get employee info
+    employee = conn.execute(
+        "SELECT id, first_name, last_name, status FROM employees WHERE id = ?",
+        (employee_id,),
+    ).fetchone()
+    
+    if employee is None:
+        conn.close()
+        abort(404)
+    
+    # Check if already inactive
+    if employee["status"] != "active":
+        conn.close()
+        flash("Employee is already inactive.", "info")
+        return redirect(url_for("employee_detail", employee_id=employee_id))
+    
+    # Set status to inactive (soft delete)
+    conn.execute(
+        "UPDATE employees SET status = 'inactive' WHERE id = ?",
+        (employee_id,),
+    )
+    conn.commit()
+    conn.close()
+    
+    flash(f"Employee {employee['first_name']} {employee['last_name']} has been removed.", "success")
+    return redirect(url_for("employees_list"))
+
+
+@app.route("/employees/<int:employee_id>/restore", methods=["POST"])
+@admin_or_manager_required
+def employee_restore(employee_id):
+    conn = get_db_connection()
+    
+    # Get employee info
+    employee = conn.execute(
+        "SELECT id, first_name, last_name, status FROM employees WHERE id = ?",
+        (employee_id,),
+    ).fetchone()
+    
+    if employee is None:
+        conn.close()
+        abort(404)
+    
+    # Check if already active
+    if employee["status"] == "active":
+        conn.close()
+        flash("Employee is already active.", "info")
+        return redirect(url_for("employee_detail", employee_id=employee_id))
+    
+    # Set status to active (restore)
+    conn.execute(
+        "UPDATE employees SET status = 'active' WHERE id = ?",
+        (employee_id,),
+    )
+    conn.commit()
+    conn.close()
+    
+    flash(f"Employee {employee['first_name']} {employee['last_name']} has been restored.", "success")
+    return redirect(url_for("employee_detail", employee_id=employee_id))
+
 
 @app.route("/employees/<int:employee_id>/pto/new", methods=["GET", "POST"])
 @login_required
