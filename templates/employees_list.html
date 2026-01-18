@@ -10,6 +10,38 @@
 <p><a href="{{ url_for('dashboard') }}">Back to dashboard</a></p>
 <p><a href="{{ url_for('employee_new') }}">Add new employee</a></p>
 
+{% if is_admin %}
+    {% if show_deleted %}
+        <p><a href="{{ url_for('employees_list') }}">← Back to Active Employees</a></p>
+    {% else %}
+        <p><a href="{{ url_for('employees_list', show_deleted='true') }}">Show Deleted Employees</a></p>
+    {% endif %}
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div>
+        <ul>
+            {% for category, msg in messages %}
+                <li
+                    {% if category == 'error' %}
+                        style="color: red;"
+                    {% elif category == 'success' %}
+                        style="color: green;"
+                    {% else %}
+                        style="color: black;"
+                    {% endif %}
+                >{{ msg }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+{% endwith %}
+
+{% if show_deleted %}
+    <h2>Deleted Employees</h2>
+{% endif %}
+
 {% if employees %}
 <table border="1" cellpadding="6" cellspacing="0">
     <thead>
@@ -18,6 +50,10 @@
             <th>Employment Type</th>
             <th>Phone</th>
             <th>Email</th>
+            {% if show_deleted and is_admin %}
+            <th>Status</th>
+            <th>Actions</th>
+            {% endif %}
         </tr>
     </thead>
     <tbody>
@@ -32,12 +68,26 @@
             <td>{{ e['employment_type']|capitalize }}</td>
             <td>{{ e['phone'] or '' }}</td>
             <td>{{ e['email'] or '' }}</td>
+            {% if show_deleted and is_admin %}
+            <td>{{ e['status']|capitalize }}</td>
+            <td>
+                <select onchange="if(this.value) { if(this.value.includes('delete_permanently')) { if(confirm('Are you sure you want to PERMANENTLY delete this employee? This action cannot be undone and will delete all PTO history.')) { var form = document.createElement('form'); form.method = 'POST'; form.action = this.value; document.body.appendChild(form); form.submit(); } } else if(this.value.includes('restore')) { if(confirm('Are you sure you want to restore this employee?')) { var form = document.createElement('form'); form.method = 'POST'; form.action = this.value; document.body.appendChild(form); form.submit(); } } this.selectedIndex = 0; }" style="padding: 4px 8px; cursor: pointer;">
+                    <option value="">Actions...</option>
+                    <option value="{{ url_for('employee_restore', employee_id=e['id']) }}">Restore</option>
+                    <option value="{{ url_for('employee_delete_permanently', employee_id=e['id']) }}">Permanently Delete</option>
+                </select>
+            </td>
+            {% endif %}
         </tr>
     {% endfor %}
     </tbody>
 </table>
 {% else %}
-<p>No employees yet.</p>
+    {% if show_deleted %}
+        <p>No deleted employees.</p>
+    {% else %}
+        <p>No employees yet.</p>
+    {% endif %}
 {% endif %}
 
 </body>
