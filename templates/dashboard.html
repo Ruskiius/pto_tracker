@@ -16,8 +16,12 @@
     {% if role in ('admin', 'manager') %}
     <li><a href="{{ url_for('admin_balances_select_employee') }}">PTO Balances</a></li>
     {% endif %}
+    {% if session.get('user_id') and 'users:manage' in session.get('permissions', []) %}
+    <li><a href="{{ url_for('users_list') }}">Users</a></li>
+    {% endif %}
     {% if role == 'admin' %}
     <li><a href="{{ url_for('admin_pto_types') }}">Admin: PTO Types</a></li>
+    <li><a href="{{ url_for('roles_list') }}">Admin: Roles Management</a></li>
     {% endif %}
 </ul>
 

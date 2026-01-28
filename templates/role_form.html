@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% if role %}Edit{% else %}Create{% endif %} Role</title>
+</head>
+<body>
+
+<h1>{% if role %}Edit{% else %}Create{% endif %} Role</h1>
+
+<a href="{{ url_for('roles_list') }}">Back to Roles List</a>
+
+{% if errors %}
+<div style="color: red;">
+    <h3>Errors:</h3>
+    <ul>
+        {% for error in errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<form method="POST">
+    <label for="name">Role Name:</label><br>
+    <input type="text" id="name" name="name" value="{{ form_data.name or '' }}" required><br><br>
+    
+    <h3>Permissions:</h3>
+    <p>Select the permissions for this role:</p>
+    {% for permission in permissions %}
+    <div>
+        <input type="checkbox" 
+               id="perm_{{ permission.id }}" 
+               name="permissions" 
+               value="{{ permission.id }}"
+               {% if permission.id|string in selected_permissions %}checked{% endif %}>
+        <label for="perm_{{ permission.id }}">
+            <strong>{{ permission.code }}</strong> - {{ permission.description }}
+        </label>
+    </div>
+    {% endfor %}
+    
+    <br>
+    <button type="submit">{% if role %}Update{% else %}Create{% endif %} Role</button>
+</form>
+
+</body>
+</html>
