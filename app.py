@@ -37,6 +37,14 @@ def get_db_connection():
     return conn
 
 
+def get_all_roles():
+    """Fetch all roles from the database."""
+    conn = get_db_connection()
+    roles = [dict(row) for row in conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()]
+    conn.close()
+    return roles
+
+
 def calculate_pto_hours(start_date, end_date, hours_per_day=HOURS_PER_DAY, skip_weekends=SKIP_WEEKENDS):
     """
     Calculate PTO hours between start_date and end_date (inclusive).
@@ -1355,7 +1363,7 @@ def user_new():
     conn = get_db_connection()
     
     # Fetch all available roles from the database
-    roles = [dict(row) for row in conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()]
+    roles = get_all_roles()
     
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -1422,7 +1430,7 @@ def user_edit(user_id):
     conn = get_db_connection()
     
     # Fetch all available roles from the database
-    roles = [dict(row) for row in conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()]
+    roles = get_all_roles()
     
     # Get user info
     user = conn.execute(
