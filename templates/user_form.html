@@ -34,8 +34,9 @@
     <label for="role">Role:</label><br>
     <select id="role" name="role" required>
         <option value="">-- Select Role --</option>
-        <option value="admin" {% if form_data.role == 'admin' %}selected{% endif %}>Admin</option>
-        <option value="manager" {% if form_data.role == 'manager' %}selected{% endif %}>Manager</option>
+        {% for role in roles %}
+        <option value="{{ role.name }}" {% if form_data.role == role.name %}selected{% endif %}>{{ role.name }}</option>
+        {% endfor %}
     </select><br><br>
     
     <button type="submit">{% if user %}Update{% else %}Create{% endif %} User</button>

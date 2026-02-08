@@ -1354,6 +1354,9 @@ def user_new():
     
     conn = get_db_connection()
     
+    # Fetch all available roles from the database
+    roles = conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()
+    
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
@@ -1402,12 +1405,13 @@ def user_new():
         return render_template(
             "user_form.html",
             form_data={"username": username, "full_name": full_name, "role": role},
+            roles=roles,
             errors=errors
         )
     
     # GET request
     conn.close()
-    return render_template("user_form.html", form_data={}, errors=[])
+    return render_template("user_form.html", form_data={}, roles=roles, errors=[])
 
 
 @app.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
@@ -1416,6 +1420,9 @@ def user_edit(user_id):
     from werkzeug.security import generate_password_hash
     
     conn = get_db_connection()
+    
+    # Fetch all available roles from the database
+    roles = conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()
     
     # Get user info
     user = conn.execute(
@@ -1488,6 +1495,7 @@ def user_edit(user_id):
             "user_form.html",
             user=user,
             form_data={"username": username, "full_name": full_name, "role": role},
+            roles=roles,
             errors=errors
         )
     
@@ -1497,6 +1505,7 @@ def user_edit(user_id):
         "user_form.html",
         user=user,
         form_data={"username": user["username"], "full_name": user["full_name"], "role": user["role"]},
+        roles=roles,
         errors=[]
     )
 
