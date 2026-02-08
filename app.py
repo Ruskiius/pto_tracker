@@ -1355,7 +1355,7 @@ def user_new():
     conn = get_db_connection()
     
     # Fetch all available roles from the database
-    roles = conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()
+    roles = [dict(row) for row in conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()]
     
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -1422,7 +1422,7 @@ def user_edit(user_id):
     conn = get_db_connection()
     
     # Fetch all available roles from the database
-    roles = conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()
+    roles = [dict(row) for row in conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()]
     
     # Get user info
     user = conn.execute(
