@@ -37,6 +37,14 @@ def get_db_connection():
     return conn
 
 
+def get_all_roles():
+    """Fetch all roles from the database."""
+    conn = get_db_connection()
+    roles = [dict(row) for row in conn.execute("SELECT id, name FROM roles ORDER BY name").fetchall()]
+    conn.close()
+    return roles
+
+
 def calculate_pto_hours(start_date, end_date, hours_per_day=HOURS_PER_DAY, skip_weekends=SKIP_WEEKENDS):
     """
     Calculate PTO hours between start_date and end_date (inclusive).
@@ -1354,6 +1362,9 @@ def user_new():
     
     conn = get_db_connection()
     
+    # Fetch all available roles from the database
+    roles = get_all_roles()
+    
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
@@ -1402,12 +1413,13 @@ def user_new():
         return render_template(
             "user_form.html",
             form_data={"username": username, "full_name": full_name, "role": role},
+            roles=roles,
             errors=errors
         )
     
     # GET request
     conn.close()
-    return render_template("user_form.html", form_data={}, errors=[])
+    return render_template("user_form.html", form_data={}, roles=roles, errors=[])
 
 
 @app.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
@@ -1416,6 +1428,9 @@ def user_edit(user_id):
     from werkzeug.security import generate_password_hash
     
     conn = get_db_connection()
+    
+    # Fetch all available roles from the database
+    roles = get_all_roles()
     
     # Get user info
     user = conn.execute(
@@ -1488,6 +1503,7 @@ def user_edit(user_id):
             "user_form.html",
             user=user,
             form_data={"username": username, "full_name": full_name, "role": role},
+            roles=roles,
             errors=errors
         )
     
@@ -1497,6 +1513,7 @@ def user_edit(user_id):
         "user_form.html",
         user=user,
         form_data={"username": user["username"], "full_name": user["full_name"], "role": user["role"]},
+        roles=roles,
         errors=[]
     )
 
